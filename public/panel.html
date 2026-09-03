@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Plataforma de clima y desempeño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/panel.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="30" height="20" viewBox="0 0 60 40" aria-hidden="true">
+      <polyline points="8,32 20,10 30,22 42,8 52,30" fill="none" stroke="#8CA5FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="8" cy="32" r="5.5" fill="#fff"/><circle cx="30" cy="22" r="4.5" fill="#8CA5FF"/><circle cx="42" cy="8" r="5.5" fill="#fff"/>
+    </svg>
+    <span>MAG</span><small>Consulting</small>
+  </div>
+  <div class="sep"></div>
+  <div class="client">Plataforma de clima y desempeño · <b id="org">—</b></div>
+  <div class="yo">
+    <span id="quienSoy"></span>
+    <button type="button" id="btnSalir">Salir</button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Secciones">
+    <div class="rail-label">Panel</div>
+    <button type="button" class="on" data-go="inicio"><span class="ico">◉</span> Inicio</button>
+    <button type="button" data-go="personas"><span class="ico">☰</span> Colaboradores</button>
+    <button type="button" data-go="medicion"><span class="ico">✎</span> Nueva medición</button>
+    <button type="button" data-go="envio"><span class="ico">✆</span> Enviar la encuesta</button>
+    <button type="button" data-go="resultados"><span class="ico">▤</span> Resultados</button>
+    <button type="button" data-go="acciones"><span class="ico">✦</span> Qué hacer ahora <span class="badge" id="railBadge" hidden>0</span></button>
+    <div class="rail-label">Configuración</div>
+    <button type="button" data-go="ajustes"><span class="ico">⚙</span> Ajustes</button>
+    <div class="foot">MAG Consulting · Mica Aguirre y Gabi Balbuena</div>
+  </nav>
+
+  <main id="main">
+
+    <!-- ============ INICIO ============ -->
+    <section class="view on" id="v-inicio">
+      <div class="head">
+        <h1 id="saludo">Hola</h1>
+        <p>Esto es todo lo que necesitas revisar hoy.</p>
+      </div>
+      <div id="inicioBody"><p class="vacio">Cargando…</p></div>
+    </section>
+
+    <!-- ============ COLABORADORES ============ -->
+    <section class="view" id="v-personas">
+      <div class="head">
+        <h1>Colaboradores</h1>
+        <p>Una sola lista: nombre, área y número. Se actualiza cuando alguien entra o sale, y con eso ya está lista la siguiente medición.</p>
+      </div>
+
+      <div class="card">
+        <div class="pad">
+          <div class="row" style="margin-bottom:14px">
+            <select id="fArea" style="width:auto;min-width:190px" aria-label="Filtrar por área">
+              <option value="">Todas las áreas</option>
+            </select>
+            <span class="muted" id="countTxt"></span>
+            <span class="spacer"></span>
+            <button type="button" class="btn ghost sm" id="btnImportar">Pegar una lista</button>
+            <button type="button" class="btn ghost sm" id="btnExportar">Descargar en CSV</button>
+            <button type="button" class="btn sm" id="btnNuevo">Agregar persona</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Nombre</th><th>Área</th><th>Teléfono</th><th>Antigüedad</th><th></th></tr></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NUEVA MEDICIÓN ============ -->
+    <section class="view" id="v-medicion">
+      <div class="head">
+        <h1>Nueva medición</h1>
+        <p>Elige las preguntas y ponle fecha de cierre. Se crea en borrador: recién se envía cuando tú lo digas.</p>
+      </div>
+
+      <div class="split">
+        <div class="card">
+          <div class="pad">
+            <div class="card-title"><h3>Preguntas</h3><span class="note" id="qCount">0 elegidas</span></div>
+            <div class="qlist" id="qlist"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="pad">
+            <div class="card-title"><h3>Datos de la medición</h3></div>
+            <div class="field">
+              <label class="f" for="mName">Nombre</label>
+              <input id="mName" type="text" placeholder="Clima · T4 2026">
+            </div>
+            <div class="field">
+              <label class="f" for="mPer">Periodo · sale en el gráfico</label>
+              <input id="mPer" type="text" placeholder="T4 2026">
+            </div>
+            <div class="field">
+              <label class="f" for="mCierra">Cierra el</label>
+              <input id="mCierra" type="date">
+            </div>
+            <button type="button" class="btn" id="btnCrear">Crear la medición</button>
+            <p class="muted mt16" style="font-size:12.5px">Quedará en borrador. Para que salga, ve a <b>Enviar la encuesta</b>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt24">
+        <div class="pad">
+          <div class="card-title"><h3>Mediciones anteriores</h3></div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Medición</th><th>Estado</th><th>Participación</th><th></th></tr></thead>
+              <tbody id="campTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ENVÍO ============ -->
+    <section class="view" id="v-envio">
+      <div class="head">
+        <h1>Enviar la encuesta</h1>
+        <p>Cada persona tiene su propio link. Un link se responde una sola vez, y la respuesta no queda unida a quien la mandó.</p>
+      </div>
+      <div id="envioBody"><p class="vacio">Cargando…</p></div>
+    </section>
+
+    <!-- ============ RESULTADOS ============ -->
+    <section class="view" id="v-resultados">
+      <div class="head">
+        <h1>Resultados</h1>
+        <p>Los desgloses de áreas chicas quedan ocultos a propósito: con pocas respuestas, el promedio del área delata a la persona.</p>
+      </div>
+      <div class="row" style="margin-bottom:18px">
+        <select id="selCamp" style="width:auto;min-width:260px" aria-label="Elegir medición"></select>
+      </div>
+      <div id="resBody"><p class="vacio">Elige una medición.</p></div>
+    </section>
+
+    <!-- ============ ACCIONES ============ -->
+    <section class="view" id="v-acciones">
+      <div class="head">
+        <h1>Qué hacer ahora</h1>
+        <p>Cada acción dice de qué número salió, quién la tiene a cargo y dónde se va a notar si funcionó.</p>
+      </div>
+      <div id="accBody"><p class="vacio">Cargando…</p></div>
+    </section>
+
+    <!-- ============ AJUSTES ============ -->
+    <section class="view" id="v-ajustes">
+      <div class="head">
+        <h1>Ajustes</h1>
+        <p>Cómo se identifica la plataforma frente a los colaboradores y por dónde salen los mensajes.</p>
+      </div>
+      <div class="split">
+        <div class="card">
+          <div class="pad">
+            <div class="card-title"><h3>Identidad</h3></div>
+            <div class="field">
+              <label class="f" for="aOrg">Organización</label>
+              <input id="aOrg" type="text">
+            </div>
+            <div class="field">
+              <label class="f" for="aRem">Quién firma los mensajes</label>
+              <input id="aRem" type="text">
+              <p class="muted mt8" style="font-size:12.5px">Es lo que lee el colaborador al abrir la encuesta.</p>
+            </div>
+            <div class="field">
+              <label class="f" for="aMin">Mínimo de respuestas para mostrar un área</label>
+              <input id="aMin" type="number" min="2" max="20">
+              <p class="muted mt8" style="font-size:12.5px">Debajo de este número el área no muestra puntaje. Bajarlo hace la encuesta menos anónima.</p>
+            </div>
+            <button type="button" class="btn" id="btnAjustes">Guardar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="pad">
+            <div class="card-title"><h3>Canal de envío</h3></div>
+            <div id="canales"></div>
+            <div class="flag mt16">
+              <span class="dot"></span>
+              <p id="canalNota"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- modal genérico -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="box"><div class="pad">
+    <div class="card-title">
+      <h3 id="modalT"></h3>
+      <button type="button" class="x" id="modalX" aria-label="Cerrar">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/panel.js"></script>
+</body>
+</html>

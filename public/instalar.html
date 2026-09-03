@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Primer arranque · Plataforma de clima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/panel.css">
+</head>
+<body>
+<div class="centro">
+  <form class="caja" id="form">
+    <h1>Primer arranque</h1>
+    <p class="sub">Crea la cuenta que va a administrar la plataforma. Esta pantalla se ve una sola vez: después queda cerrada.</p>
+
+    <div class="err" id="err" role="alert"></div>
+
+    <div class="field">
+      <label class="f" for="nombre">Nombre de quien administra</label>
+      <input id="nombre" type="text" autocomplete="name" placeholder="Claudia Benites" required autofocus>
+    </div>
+    <div class="field">
+      <label class="f" for="correo">Correo</label>
+      <input id="correo" type="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label class="f" for="clave">Contraseña · mínimo 10 caracteres</label>
+      <input id="clave" type="password" autocomplete="new-password" minlength="10" required>
+    </div>
+
+    <button class="btn" type="submit" id="btn">Crear la cuenta</button>
+    <p class="pie">MAG Consulting</p>
+  </form>
+</div>
+<script src="/instalar.js"></script>
+</body>
+</html>

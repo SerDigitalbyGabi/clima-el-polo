@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Entrar · Plataforma de clima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/panel.css">
+</head>
+<body>
+<div class="centro">
+  <form class="caja" id="form">
+    <h1>Plataforma de clima</h1>
+    <p class="sub">Entra con el correo que registró MAG Consulting.</p>
+
+    <div class="err" id="err" role="alert"></div>
+
+    <div class="field">
+      <label class="f" for="correo">Correo</label>
+      <input id="correo" name="correo" type="email" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label class="f" for="clave">Contraseña</label>
+      <input id="clave" name="clave" type="password" autocomplete="current-password" required>
+    </div>
+
+    <button class="btn" type="submit" id="btn">Entrar</button>
+    <p class="pie">MAG Consulting</p>
+  </form>
+</div>
+<script src="/entrar.js"></script>
+</body>
+</html>
