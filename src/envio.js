@@ -52,7 +52,9 @@ async function meta({ persona, enlace, env }) {
         type: 'template',
         template: {
           name: env.WA_PLANTILLA || 'invitacion_encuesta_clima',
-          language: { code: 'es' },
+          // tiene que coincidir exacto con el idioma con que se creo la
+          // plantilla: 'es' y 'es_MX' no son intercambiables para Meta
+          language: { code: env.WA_IDIOMA || 'es' },
           components: [
             { type: 'body',
               parameters: [

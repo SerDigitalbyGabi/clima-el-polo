@@ -111,9 +111,16 @@ Lo que hace falta:
    - Un Meta Business Portfolio en `business.facebook.com`.
    - Una app en `developers.facebook.com` con el producto WhatsApp agregado.
 
-3. **Verificación de negocio.** Meta pide RUC, ficha de constitución y a veces un
-   recibo de servicios. **Este es el paso que demora** — días, a veces más de una
-   semana. Hasta que salga, quedas en modo prueba con pocos destinatarios.
+3. **Verificación de negocio: no hace falta para este cliente.** Una cuenta sin
+   verificar puede enviar a **250 destinatarios únicos cada 24 horas**. El Polo
+   tiene 48. Se salta el paso.
+
+   Hará falta cuando se superen esos 250 en un día, o si algún día se quiere el
+   nombre verificado en lugar del número. MAG es persona natural con RUC, no
+   empresa constituida: el documento para ese trámite es el **Comprobante de
+   Información Registrada de SUNAT** (ficha RUC), no una ficha de SUNARP. Meta
+   acepta documentos tributarios y hay caminos para personas naturales con
+   negocio, aunque es más quisquilloso que con una empresa constituida.
 
 4. **Una plantilla aprobada.** Todo mensaje que inicia el negocio tiene que ser
    una plantilla revisada por Meta. Categoría Utility (más barata). Debe llevar
@@ -150,6 +157,12 @@ cliente, y que la tarjeta sea de MAG con el costo incluido en el fee. Razones:
 Si el cliente exige ser dueño de su WABA y pagarla él, pide acceso de **Partner**
 (business-to-business), nunca acceso individual: del lado del cliente figura
 "MAG Consulting" y no nombres propios.
+
+**A nombre de quién va el portafolio.** MAG es persona natural con RUC, así que
+el titular del portafolio es una persona, no una razón social. Conviene que sea
+quien firma con los clientes, con "MAG Consulting" como nombre comercial. La otra
+socia entra como usuaria del portafolio: es un asunto interno y el cliente nunca
+lo ve, porque no entra a Meta en ningún momento.
 
 ### `twilio` — respaldo
 
