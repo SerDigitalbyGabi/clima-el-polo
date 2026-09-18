@@ -185,6 +185,13 @@ export async function api(req, env, url, ctx) {
     if (!admin || !(await verificar(String(clave || ''), admin.hash))) {
       return error('Correo o contraseña incorrectos.', 401);
     }
+    // hash del formato anterior (100k, sin conteo guardado): se regenera al
+    // formato nuevo aprovechando que aca tenemos la clave en claro. Un solo
+    // login lento y de ahi en adelante queda bajo el presupuesto de CPU.
+    if (admin.hash.split(':').length === 2) {
+      await db.prepare('UPDATE admins SET hash = ? WHERE id = ?')
+        .bind(await hashear(String(clave)), admin.id).run();
+    }
     const sid = await abrirSesion(db, admin.id);
     return json({ nombre: admin.nombre, correo: admin.correo }, 200,
       { 'Set-Cookie': cookieSesion(sid, url.protocol === 'https:') });
