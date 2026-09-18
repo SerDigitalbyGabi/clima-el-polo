@@ -417,7 +417,9 @@ document.getElementById('btnImportar').addEventListener('click', () => {
       const r = await api('/colaboradores/importar', { method: 'POST',
         body: { texto: document.getElementById('impTexto').value } });
       cerrarModal();
-      toast(`${r.agregados} personas agregadas` + (r.problemas.length ? ` · ${r.problemas.length} filas con problemas` : ''));
+      toast(`${r.agregados} personas agregadas`
+        + (r.yaEstaban ? ` · ${r.yaEstaban} ya estaban` : '')
+        + (r.problemas.length ? ` · ${r.problemas.length} filas con problemas` : ''));
       if (r.problemas.length) {
         const ul = el('div', {});
         for (const p of r.problemas) ul.append(el('p', { class: 'muted', text: p }));

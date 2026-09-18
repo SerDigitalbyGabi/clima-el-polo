@@ -15,6 +15,20 @@ const json = (data, status = 200, extra = {}) =>
 
 const error = (msg, status = 400) => json({ error: msg }, status);
 
+/* Fecha de hoy en Lima (UTC-5, sin horario de verano). SQLite trabaja en UTC:
+   a las 8 de la noche en Lima, date('now') ya dice mañana. */
+const hoyLima = () => new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+
+/* Las mediciones con fecha de cierre vencida pasan a cerradas solas. Corre al
+   entrar a la API: un UPDATE que casi siempre no toca nada, y a cambio el
+   estado converge sin que nadie tenga que acordarse de pulsar "Cerrar". */
+const cerrarVencidas = (db) => db.prepare(
+  "UPDATE campanas SET estado = 'cerrada' WHERE estado = 'abierta' AND cierra_en IS NOT NULL AND cierra_en < ?"
+).bind(hoyLima()).run();
+
+const AJUSTES_PERMITIDOS = ['organizacion', 'remitente', 'canal_envio', 'minimo_anonimato', 'correo_desde', 'correo_nombre'];
+const CANALES = ['manual', 'meta', 'twilio'];
+
 /* Cuantas invitaciones se procesan por llamada. Un Worker tiene tope de
    subpeticiones por request, asi que en los canales que salen por API el panel
    llama en tandas hasta terminar. El canal manual no hace ninguna subpeticion:
@@ -156,6 +170,8 @@ export async function api(req, env, url, ctx) {
     ? await req.json().catch(() => ({}))
     : {};
 
+  await cerrarVencidas(db);
+
   /* ---------- encuesta pública: sin sesión ---------- */
   const mEnc = ruta.match(/^\/e\/([A-Z0-9]+)$/);
   if (mEnc) return encuesta(db, mEnc[1], metodo, cuerpo, env);
@@ -204,7 +220,18 @@ export async function api(req, env, url, ctx) {
 
   if (ruta === '/ajustes') {
     if (metodo === 'PATCH') {
-      for (const [k, v] of Object.entries(cuerpo)) await guardarAjuste(db, k, v);
+      for (const [k, v] of Object.entries(cuerpo)) {
+        if (!AJUSTES_PERMITIDOS.includes(k)) continue;
+        let valor = String(v ?? '').trim();
+        if (k === 'canal_envio' && !CANALES.includes(valor)) continue;
+        if (k === 'minimo_anonimato') {
+          // por debajo de 2 la regla deja de proteger a nadie; un valor raro
+          // ("abc", "-1") tampoco puede apagarla por accidente
+          const n = Math.round(Number(valor));
+          valor = String(Number.isFinite(n) ? Math.min(20, Math.max(2, n)) : 4);
+        }
+        await guardarAjuste(db, k, valor);
+      }
     }
     return json(await ajustes(db));
   }
@@ -316,7 +343,7 @@ export async function api(req, env, url, ctx) {
              ON CONFLICT (campana_id, colaborador_id) DO NOTHING`
           ).bind(tokenCorto(), id, g.id)
         ),
-        db.prepare("UPDATE campanas SET estado = 'abierta', abre_en = date('now') WHERE id = ?").bind(id),
+        db.prepare("UPDATE campanas SET estado = 'abierta', abre_en = ? WHERE id = ?").bind(hoyLima(), id),
       ]);
       return json({ ok: true, invitados: gente.length });
     }
@@ -540,36 +567,50 @@ async function encuesta(db, tk, metodo, cuerpo, env) {
         WHERE cp.campana_id = ?`
     ).bind(inv.campana_id).all();
 
-    const resp = await db.prepare(
-      'INSERT INTO respuestas (campana_id, area_id, antiguedad) VALUES (?, ?, ?) RETURNING id'
-    ).bind(inv.campana_id, inv.area_id, rangoAntiguedad(inv.ingreso)).first();
+    // Primero se reclama la invitacion, en un solo UPDATE condicional: si dos
+    // envios llegan a la vez, uno cambia la fila y el otro ve 0 cambios. Recien
+    // despues se guarda la respuesta. Sigue sin existir ninguna columna que una
+    // la invitacion con la respuesta: son dos escrituras, no una relacion.
+    const reclamo = await db.prepare(
+      "UPDATE invitaciones SET respondida_en = datetime('now') WHERE token = ? AND respondida_en IS NULL"
+    ).bind(tk).run();
+    if (!reclamo.meta?.changes) return error('Ya registramos tus respuestas. ¡Gracias!', 409);
 
-    const inserts = [];
-    for (const p of preguntas) {
-      const dada = dadas[p.id];
-      if (dada == null || dada === '') continue;
-      if (p.tipo === 'escala') {
-        const opciones = JSON.parse(p.opciones || '[]');
-        const valor = valorDeOpcion(opciones, String(dada));
-        if (valor == null) continue; // opcion que no existe: se descarta
-        inserts.push(db.prepare(
-          'INSERT INTO detalle (respuesta_id, pregunta_id, valor, opcion) VALUES (?, ?, ?, ?)'
-        ).bind(resp.id, p.id, valor, String(dada)));
-      } else {
-        inserts.push(db.prepare(
-          'INSERT INTO detalle (respuesta_id, pregunta_id, texto) VALUES (?, ?, ?)'
-        ).bind(resp.id, p.id, String(dada).slice(0, 2000)));
+    let respuestaId = null;
+    try {
+      const resp = await db.prepare(
+        'INSERT INTO respuestas (campana_id, area_id, antiguedad, fecha) VALUES (?, ?, ?, ?) RETURNING id'
+      ).bind(inv.campana_id, inv.area_id, rangoAntiguedad(inv.ingreso), hoyLima()).first();
+      respuestaId = resp.id;
+
+      const inserts = [];
+      for (const p of preguntas) {
+        const dada = dadas[p.id];
+        if (dada == null || dada === '') continue;
+        if (p.tipo === 'escala') {
+          const opciones = JSON.parse(p.opciones || '[]');
+          const valor = valorDeOpcion(opciones, String(dada));
+          if (valor == null) continue; // opcion que no existe: se descarta
+          inserts.push(db.prepare(
+            'INSERT INTO detalle (respuesta_id, pregunta_id, valor, opcion) VALUES (?, ?, ?, ?)'
+          ).bind(respuestaId, p.id, valor, String(dada)));
+        } else {
+          inserts.push(db.prepare(
+            'INSERT INTO detalle (respuesta_id, pregunta_id, texto) VALUES (?, ?, ?)'
+          ).bind(respuestaId, p.id, String(dada).slice(0, 2000)));
+        }
       }
+      if (inserts.length) await db.batch(inserts);
+      return json({ ok: true });
+    } catch (e) {
+      // se libera el reclamo para que la persona pueda reintentar, y no queda
+      // una respuesta a medias ensuciando el promedio
+      await db.batch([
+        ...(respuestaId ? [db.prepare('DELETE FROM respuestas WHERE id = ?').bind(respuestaId)] : []),
+        db.prepare('UPDATE invitaciones SET respondida_en = NULL WHERE token = ?').bind(tk),
+      ]);
+      throw e;
     }
-
-    // marcar la invitacion va en la misma tanda que el detalle, pero sigue
-    // sin existir ninguna columna que la una con la respuesta
-    inserts.push(db.prepare(
-      "UPDATE invitaciones SET respondida_en = datetime('now') WHERE token = ?"
-    ).bind(tk));
-
-    await db.batch(inserts);
-    return json({ ok: true });
   }
 
   return error('Método no permitido.', 405);
@@ -636,10 +677,21 @@ async function importar(db, texto) {
   const { results: areas } = await db.prepare('SELECT id, nombre FROM areas').all();
   const porNombre = new Map(areas.map((a) => [a.nombre.toLowerCase(), a.id]));
 
+  // Quien ya esta cargado no se vuelve a cargar: pegar la misma lista dos
+  // veces (porque se corrigio un error de tipeo, por ejemplo) no puede
+  // duplicar a toda la planilla. Se reconoce por telefono, o por nombre+area
+  // cuando no hay telefono.
+  const { results: existentes } = await db.prepare(
+    'SELECT nombre, area_id, telefono FROM colaboradores WHERE activo = 1'
+  ).all();
+  const telefonos = new Set(existentes.map((c) => c.telefono).filter(Boolean));
+  const nombres = new Set(existentes.map((c) => `${c.nombre.toLowerCase()}|${c.area_id}`));
+
   const lineas = String(texto).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const nuevas = [];
   const problemas = [];
   let n = 0;
+  let yaEstaban = 0;
 
   for (const [i, linea] of lineas.entries()) {
     const partes = linea.split(/[\t,;]/).map((p) => p.trim());
@@ -659,6 +711,11 @@ async function importar(db, texto) {
     const tel = telefono ? normalizarTelefono(telefono) : null;
     if (telefono && !tel) problemas.push(`Línea ${i + 1}: el teléfono de ${nombre} no se entiende.`);
 
+    const llaveNombre = `${nombre.toLowerCase()}|${areaId}`;
+    if ((tel && telefonos.has(tel)) || nombres.has(llaveNombre)) { yaEstaban++; continue; }
+    if (tel) telefonos.add(tel);
+    nombres.add(llaveNombre);
+
     nuevas.push(db.prepare(
       'INSERT INTO colaboradores (nombre, area_id, telefono, ingreso) VALUES (?, ?, ?, ?)'
     ).bind(nombre, areaId, tel, ingreso || null));
@@ -666,7 +723,7 @@ async function importar(db, texto) {
   }
 
   if (nuevas.length) await db.batch(nuevas);
-  return json({ agregados: n, problemas });
+  return json({ agregados: n, yaEstaban, problemas });
 }
 
 /* ============================================================

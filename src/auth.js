@@ -1,6 +1,12 @@
 /* Sesiones de administrador. PBKDF2 sobre WebCrypto: sin dependencias. */
 
-const ITER = 100_000;
+/* 30k iteraciones: unos 5 ms de CPU. El plan gratuito de Workers corta a
+   10 ms por request, y workerd no acepta mas de 100k de todos modos. La
+   defensa real contra fuerza bruta es el rate limiting del WAF, no este numero.
+   El conteo va guardado dentro del hash para poder subirlo mas adelante sin
+   invalidar las contraseñas que ya existen. */
+const ITER = 30_000;
+const ITER_HEREDADO = 100_000; // hashes anteriores, sin conteo guardado
 const DIA = 86_400_000;
 
 const hex = (buf) =>
@@ -8,26 +14,37 @@ const hex = (buf) =>
 
 const bytes = (n) => crypto.getRandomValues(new Uint8Array(n));
 
-async function derivar(clave, salHex) {
+async function derivar(clave, salHex, iteraciones) {
   const sal = Uint8Array.from(salHex.match(/../g).map((h) => parseInt(h, 16)));
   const base = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(clave), 'PBKDF2', false, ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: ITER }, base, 256
+    { name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: iteraciones }, base, 256
   );
   return hex(bits);
 }
 
 export async function hashear(clave) {
   const sal = hex(bytes(16));
-  return `${sal}:${await derivar(clave, sal)}`;
+  return `${ITER}:${sal}:${await derivar(clave, sal, ITER)}`;
 }
 
 export async function verificar(clave, guardado) {
-  const [sal, esperado] = String(guardado).split(':');
-  if (!sal || !esperado) return false;
-  const obtenido = await derivar(clave, sal);
+  const partes = String(guardado).split(':');
+  let iteraciones, sal, esperado;
+  if (partes.length === 3) {
+    [sal, esperado] = [partes[1], partes[2]];
+    iteraciones = Number(partes[0]);
+  } else if (partes.length === 2) {
+    // formato anterior: sal:hash, siempre a 100k
+    [sal, esperado] = partes;
+    iteraciones = ITER_HEREDADO;
+  } else {
+    return false;
+  }
+  if (!sal || !esperado || !Number.isInteger(iteraciones) || iteraciones < 1000) return false;
+  const obtenido = await derivar(clave, sal, iteraciones);
   // comparacion en tiempo constante
   if (obtenido.length !== esperado.length) return false;
   let dif = 0;

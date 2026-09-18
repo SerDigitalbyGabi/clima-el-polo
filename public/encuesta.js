@@ -128,7 +128,9 @@ async function terminar() {
       body: JSON.stringify({ respuestas }),
     });
     const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'No se pudieron guardar tus respuestas.');
+    // 409 = ya estaba guardada. Pasa cuando el primer envio llego pero se
+    // perdio la confirmacion por la red: para la persona, eso es un exito.
+    if (!r.ok && r.status !== 409) throw new Error(d.error || 'No se pudieron guardar tus respuestas.');
 
     await escribiendo();
     burbuja(
