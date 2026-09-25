@@ -3,7 +3,8 @@
 Medición de clima laboral por WhatsApp, con panel de resultados y plan de acción.
 Construida por MAG Consulting. Corre sobre Cloudflare Workers + D1.
 
-**Producción:** https://clima-el-polo.hola-f93.workers.dev
+**Producción:** https://clima-el-polo.pages.dev
+(y `clima.ccelpolo.com` cuando el cliente agregue el CNAME — ver *Dominio del cliente*)
 
 ---
 
@@ -215,14 +216,14 @@ respuesta del jefe vuelve a la persona correcta en cualquiera de los dos casos.
 ```bash
 npm install
 npx wrangler d1 migrations apply clima-el-polo --local
-npx wrangler dev
+npm run dev
 ```
 
 Despliegue:
 
 ```bash
 npx wrangler d1 migrations apply clima-el-polo --remote
-npx wrangler deploy
+npm run deploy
 ```
 
 ### Estructura

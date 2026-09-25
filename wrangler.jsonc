@@ -1,17 +1,14 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "clima-el-polo",
-  "main": "src/index.js",
   "compatibility_date": "2026-09-01",
 
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    // el Worker atiende todo para poder pedir sesión antes de servir el panel
-    "run_worker_first": true,
-    "html_handling": "none",
-    "not_found_handling": "none"
-  },
+  // Desplegado como Cloudflare Pages en modo avanzado: dist/_worker.js atiende
+  // todas las peticiones y sirve los estáticos a mano via env.ASSETS. Se eligió
+  // Pages y no Workers porque Pages acepta dominios personalizados cuyo DNS vive
+  // en otra cuenta (clima.ccelpolo.com → CNAME → clima-el-polo.pages.dev).
+  // `npm run build` genera dist/ a partir de src/ y public/.
+  "pages_build_output_dir": "./dist",
 
   "d1_databases": [
     {
@@ -20,9 +17,5 @@
       "database_id": "6c94e83f-d6b6-470a-9419-ada061b9154f",
       "migrations_dir": "./migrations"
     }
-  ],
-
-  "observability": {
-    "enabled": true
-  }
+  ]
 }

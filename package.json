@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "build": "node build.js",
+    "dev": "npm run build && wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name clima-el-polo",
     "db:local": "wrangler d1 migrations apply clima-el-polo --local",
     "db:remote": "wrangler d1 migrations apply clima-el-polo --remote"
   },
