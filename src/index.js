@@ -49,22 +49,26 @@ export default {
       if (p === '/instalar') {
         const hay = await env.DB.prepare('SELECT COUNT(*) AS n FROM admins').first();
         if (hay.n > 0) return Response.redirect(url.origin + '/entrar', 302);
-        return servir(env, '/instalar.html', req);
+        return servir(env, '/instalar', req);
       }
 
       if (p.startsWith('/api/')) return aJson(await api(req, env, url, ctx));
 
       // la encuesta es publica: el token es la unica llave
-      if (/^\/e\/[A-Z0-9]+\/?$/.test(p)) return servir(env, '/encuesta.html', req);
+      // OJO: se pide la ruta limpia '/encuesta', no '/encuesta.html'. Pages
+      // redirige toda peticion a un .html explicito hacia la ruta sin
+      // extension (asi resuelve URLs bonitas) — pedir aqui el .html directo
+      // producia un 308 que apuntaba de vuelta a la misma URL, en bucle.
+      if (/^\/e\/[A-Z0-9]+\/?$/.test(p)) return servir(env, '/encuesta', req);
 
-      if (p === '/entrar') return servir(env, '/entrar.html', req);
+      if (p === '/entrar') return servir(env, '/entrar', req);
 
       if (p === '/' || p === '/panel') {
         const hay = await env.DB.prepare('SELECT COUNT(*) AS n FROM admins').first();
         if (hay.n === 0) return Response.redirect(url.origin + '/instalar', 302);
         const yo = await leerSesion(env.DB, req);
         if (!yo) return Response.redirect(url.origin + '/entrar', 302);
-        return servir(env, '/panel.html', req, { 'Cache-Control': 'no-store' });
+        return servir(env, '/panel', req, { 'Cache-Control': 'no-store' });
       }
 
       // el resto: css, js, iconos
