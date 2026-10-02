@@ -528,17 +528,48 @@ cargadores.envio = async () => {
       ]),
       el('span', { class: 'pill ' + (i.respondida_en ? 'ok' : i.recordada_en ? 'wait' : 'no'),
         text: i.respondida_en ? 'Respondió' : i.recordada_en ? 'Recordado' : 'Pendiente' }),
-      i.respondida_en ? el('span', {}) : el('button', {
-        class: 'btn ghost sm', text: 'Copiar',
-        onclick: async (e) => {
-          await navigator.clipboard.writeText(i.enlace);
-          e.target.textContent = 'Copiado';
-          setTimeout(() => { e.target.textContent = 'Copiar'; }, 1600);
-        } }),
+      i.respondida_en ? el('span', {}) : el('div', { class: 'row' }, [
+        el('button', {
+          type: 'button', class: 'btn ghost sm', text: 'Copiar',
+          onclick: async (e) => {
+            await navigator.clipboard.writeText(i.enlace);
+            e.target.textContent = 'Copiado';
+            setTimeout(() => { e.target.textContent = 'Copiar'; }, 1600);
+          } }),
+        // por correo solo si Resend está configurado: si no, sería un botón que falla
+        yo.correoListo ? el('button', { type: 'button', class: 'btn ghost sm', text: 'Por correo',
+          onclick: () => modalInvitacionPorCorreo(viva.id, i) }) : null,
+      ]),
     ])),
   ]));
   cont.append(lista);
 };
+
+function modalInvitacionPorCorreo(campanaId, inv) {
+  const f = el('form', {});
+  const para = el('input', { type: 'email', required: true, placeholder: 'nombre@correo.com', autocomplete: 'off' });
+  f.append(
+    el('p', { class: 'muted', style: 'font-size:13.5px;margin-bottom:12px',
+      text: `Le llega el mismo mensaje que por WhatsApp, con el link personal de ${inv.nombre}. La dirección no se guarda.` }),
+    el('div', { class: 'field' }, [el('label', { class: 'f', text: 'Correo' }), para]),
+    el('button', { class: 'btn', type: 'submit', text: 'Enviar' })
+  );
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = f.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      await api(`/campanas/${campanaId}/correo`, { method: 'POST', body: { token: inv.token, correo: para.value } });
+      cerrarModal();
+      toast(`Invitación enviada a ${para.value}`);
+    } catch (e2) {
+      toast(e2.message, true);
+      btn.disabled = false; btn.textContent = 'Enviar';
+    }
+  });
+  abrirModal(`Enviar por correo a ${inv.nombre}`, f);
+  para.focus();
+}
 
 async function mandar(campanaId, recordatorio, boton) {
   const original = boton.textContent;

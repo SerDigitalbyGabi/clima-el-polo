@@ -1,17 +1,19 @@
-/* Correo por Resend. Se usa para dos cosas: mandarle a cada jefe la accion
-   que quedo a su cargo, y mandarle a la administracion el resumen de cierre. */
+/* Correo por Resend. Se usa para mandarle a cada jefe la acción que quedó a
+   su cargo, y para mandarle a un colaborador su link de la encuesta. */
 
 export function correoDisponible(env) {
   return Boolean(env.RESEND_API_KEY);
 }
 
-export async function enviarCorreo({ env, para, asunto, texto, responderA }) {
+// `nombre` permite firmar como quien manda la encuesta (la Junta, la empresa),
+// y no como la plataforma
+export async function enviarCorreo({ env, para, asunto, texto, responderA, nombre: firma }) {
   if (!correoDisponible(env)) {
     return { ok: false, error: 'Falta la API key de Resend. El correo no salió.' };
   }
 
   const desde = env.CORREO_DESDE || 'plataforma@magconsulting.pe';
-  const nombre = env.CORREO_NOMBRE || 'MAG Consulting';
+  const nombre = firma || env.CORREO_NOMBRE || 'MAG Consulting';
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',

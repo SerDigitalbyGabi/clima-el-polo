@@ -3,7 +3,7 @@ import {
   abrirSesion, leerSesion, cerrarSesion, cookieSesion, cookieVacia,
 } from './auth.js';
 import { valorDeOpcion, promedio, rangoAntiguedad, ocultarSiEsChico, temasRepetidos } from './puntajes.js';
-import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono } from './envio.js';
+import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion } from './envio.js';
 import { enviarCorreo, cuerpoAccion, correoDisponible } from './correo.js';
 import { sugerir } from './sugerencias.js';
 import { MARCA, enModoEjemplo, cargarEjemplo, borrarEjemplo } from './ejemplo.js';
@@ -432,6 +432,37 @@ export async function api(req, env, url, ctx) {
     if (accion === 'enviar' && metodo === 'POST') {
       if (await enModoEjemplo(db)) return error(NO_ENVIAR_EN_EJEMPLO, 403);
       return enviar(db, env, url, id, cuerpo, campana);
+    }
+
+    /* La invitación de una persona, por correo. El mismo texto que por
+       WhatsApp. La dirección se escribe en el momento y no se guarda. */
+    if (accion === 'correo' && metodo === 'POST') {
+      if (await enModoEjemplo(db)) return error(NO_ENVIAR_EN_EJEMPLO, 403);
+      if (campana.estado !== 'abierta') return error('La medición no está abierta.', 409);
+      const destino = String(cuerpo.correo || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) return error('Ese correo no parece válido.');
+      const inv = await db.prepare(
+        `SELECT i.token, i.respondida_en, c.nombre
+           FROM invitaciones i JOIN colaboradores c ON c.id = i.colaborador_id
+          WHERE i.campana_id = ? AND i.token = ?`
+      ).bind(id, String(cuerpo.token || '')).first();
+      if (!inv) return error('Esa invitación no existe.', 404);
+      if (inv.respondida_en) return error('Esa persona ya respondió.', 409);
+
+      const a = await ajustes(db);
+      const remitente = a.remitente || a.organizacion;
+      const r = await enviarCorreo({
+        env,
+        para: destino,
+        nombre: remitente,
+        asunto: 'Cuéntanos cómo te fue este trimestre',
+        texto: textoInvitacion({ nombre: inv.nombre, enlace: enlaceEncuesta(url.origin, inv.token), remitente }),
+      });
+      if (!r.ok) return error(r.error, 502);
+      await db.prepare(
+        "UPDATE invitaciones SET enviada_en = COALESCE(enviada_en, datetime('now')), canal = 'correo' WHERE token = ?"
+      ).bind(inv.token).run();
+      return json({ ok: true });
     }
 
     if (accion === 'resultados' && metodo === 'GET') {

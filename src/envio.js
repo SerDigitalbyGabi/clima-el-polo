@@ -18,15 +18,19 @@ export function normalizarTelefono(tel, prefijo = '51') {
   return d;
 }
 
+/* El texto de la invitación, igual por WhatsApp que por correo. */
+export function textoInvitacion({ nombre, enlace, remitente }) {
+  return `Hola ${String(nombre).split(' ')[0]} 👋 Somos ${remitente}.\n\n` +
+    `Queremos saber cómo te fue este trimestre y qué podemos mejorar. ` +
+    `Son preguntas cortas, te toma menos de 2 minutos y tus respuestas son anónimas.\n\n` +
+    `Este link es solo tuyo: ${enlace}`;
+}
+
 /* ---------- manual: cero tramite, funciona hoy ----------
    No manda nada. Devuelve el link listo y un texto armado para que
    la persona a cargo lo pegue en su propio WhatsApp. */
 function manual({ persona, enlace, remitente }) {
-  const texto =
-    `Hola ${persona.nombre.split(' ')[0]} 👋 Somos ${remitente}.\n\n` +
-    `Queremos saber cómo te fue este trimestre y qué podemos mejorar. ` +
-    `Son preguntas cortas, te toma menos de 2 minutos y tus respuestas son anónimas.\n\n` +
-    `Este link es solo tuyo: ${enlace}`;
+  const texto = textoInvitacion({ nombre: persona.nombre, enlace, remitente });
   return { ok: true, canal: 'manual', enviado: false, texto,
            wa: `https://wa.me/${normalizarTelefono(persona.telefono) || ''}?text=${encodeURIComponent(texto)}` };
 }

@@ -10,6 +10,13 @@
   // `npm run build` genera dist/ a partir de src/ y public/.
   "pages_build_output_dir": "./dist",
 
+  // El remitente tiene que ser del dominio verificado en Resend. clima@ es un
+  // grupo de Google de El Polo: si alguien responde, le llega a MAG.
+  // La API key de Resend no va acá: es un secreto (wrangler pages secret put).
+  "vars": {
+    "CORREO_DESDE": "clima@ccelpolo.com"
+  },
+
   "d1_databases": [
     {
       "binding": "DB",
