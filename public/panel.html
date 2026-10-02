@@ -152,12 +152,12 @@
     <section class="view" id="v-resultados">
       <div class="head">
         <h1>Resultados</h1>
-        <p>Los desgloses de áreas chicas quedan ocultos a propósito: con pocas respuestas, el promedio del área delata a la persona.</p>
+        <p>Cómo les fue, pregunta por pregunta y área por área.</p>
       </div>
-      <div class="row" style="margin-bottom:18px">
+      <div class="row" id="selFila" style="margin-bottom:18px" hidden>
         <select id="selCamp" style="width:auto;min-width:260px" aria-label="Elegir medición"></select>
       </div>
-      <div id="resBody"><p class="vacio">Elige una medición.</p></div>
+      <div id="resBody"></div>
     </section>
 
     <!-- ============ ACCIONES ============ -->
@@ -229,5 +229,6 @@
 <script src="/archivo.js"></script>
 <script src="/panel.js"></script>
 <script src="/inicio.js"></script>
+<script src="/resultados.js"></script>
 </body>
 </html>

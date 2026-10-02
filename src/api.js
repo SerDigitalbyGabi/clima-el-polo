@@ -138,21 +138,40 @@ async function calcular(db, campanaId, minimo) {
     })),
   })).sort((a, b) => (a.puntaje ?? 99) - (b.puntaje ?? 99));
 
-  // los comentarios llevan area solo si el area es lo bastante grande;
-  // en un area de tres personas, decir el area es casi decir el nombre
+  // Los comentarios salen sin área: junto con el estilo de quien escribe, el
+  // área alcanza para adivinar el nombre. Se agrupan por tema en el panel.
   const textos = filas
     .filter((f) => f.tipo === 'texto' && f.texto && f.texto.trim())
-    .map((f) => ({
-      texto: f.texto.trim(),
-      dimension: f.dimension,
-      area: (respPorArea.get(f.area) || 0) >= minimo ? f.area : null,
-    }));
+    .map((f) => ({ texto: f.texto.trim(), dimension: f.dimension }));
+
+  // Cómo se repartieron las respuestas de cada pregunta, en el orden de la
+  // encuesta. "Favorable" es la mitad de arriba de la escala.
+  const { results: deLaEncuesta } = await db.prepare(
+    `SELECT p.id, p.texto, p.dimension, p.opciones
+       FROM campana_preguntas cp JOIN preguntas p ON p.id = cp.pregunta_id
+      WHERE cp.campana_id = ? AND p.tipo = 'escala'
+      ORDER BY cp.orden`
+  ).bind(campanaId).all();
+  const preguntas = deLaEncuesta.map((p) => {
+    const opciones = JSON.parse(p.opciones || '[]');
+    const suyas = escalas.filter((f) => f.pregunta_id === p.id);
+    return {
+      id: p.id,
+      texto: p.texto,
+      etiqueta: ETIQUETAS[p.dimension] || p.dimension,
+      opciones,
+      conteo: opciones.map((o) => suyas.filter((f) => f.opcion === o).length),
+      n: suyas.length,
+      favorable: suyas.length ? suyas.filter((f) => f.valor > 5).length / suyas.length : null,
+    };
+  });
 
   return {
     indice,
     invitados,
     respondieron,
     participacion: invitados ? respondieron / invitados : null,
+    preguntas,
     areas: ocultarSiEsChico(porArea, minimo),
     antiguedad: ocultarSiEsChico(porAntiguedad, minimo),
     dimensiones: dimensiones.map((d) => ({ ...d, porArea: ocultarSiEsChico(d.porArea, minimo) })),
@@ -419,16 +438,29 @@ export async function api(req, env, url, ctx) {
       const a = await ajustes(db);
       const minimo = Number(a.minimo_anonimato || 4);
       const r = await calcular(db, id, minimo);
-      const previa = await db.prepare(
-        "SELECT id FROM campanas WHERE id < ? AND estado = 'cerrada' ORDER BY id DESC LIMIT 1"
-      ).bind(id).first();
-      const anterior = previa ? await calcular(db, previa.id, minimo) : null;
+
+      // Con menos respuestas que el mínimo no sale nada más que el conteo:
+      // con una sola, el "promedio general" es exactamente lo que dijo esa
+      // persona. El panel muestra cuántas faltan; el detalle no viaja.
+      if (r.respondieron < minimo) {
+        return json({ campana, invitados: r.invitados, respondieron: r.respondieron, minimo, insuficiente: true });
+      }
+
+      // la anterior para comparar: la última cerrada que también llegó al mínimo
+      const { results: previas } = await db.prepare(
+        "SELECT id, nombre, periodo FROM campanas WHERE id < ? AND estado = 'cerrada' ORDER BY id DESC LIMIT 6"
+      ).bind(id).all();
+      let anterior = null;
+      for (const p of previas) {
+        const c = await calcular(db, p.id, minimo);
+        if (c.respondieron >= minimo) { anterior = { ...c, periodo: p.periodo || p.nombre }; break; }
+      }
       const { _crudo, ...publico } = r;
       return json({
         campana,
         ...publico,
         minimo,
-        anterior: anterior ? { indice: anterior.indice, participacion: anterior.participacion } : null,
+        anterior: anterior ? { indice: anterior.indice, participacion: anterior.participacion, periodo: anterior.periodo } : null,
         sugerencias: sugerir({
           dimensiones: _crudo.dimensiones,
           areas: _crudo.areas,
@@ -439,6 +471,25 @@ export async function api(req, env, url, ctx) {
         }),
       });
     }
+  }
+
+  /* ---------- evolución, para el gráfico de Resultados ---------- */
+  if (ruta === '/evolucion') {
+    const a = await ajustes(db);
+    const minimo = Number(a.minimo_anonimato || 4);
+    const { results } = await db.prepare(
+      "SELECT id, nombre, periodo, estado FROM campanas WHERE estado != 'borrador' ORDER BY id"
+    ).all();
+    const serie = [];
+    for (const c of results.slice(-8)) {
+      const r = await calcular(db, c.id, minimo);
+      if (r.respondieron < minimo) continue; // misma regla que el resto: sin mínimo, no hay punto
+      serie.push({
+        id: c.id, periodo: c.periodo || c.nombre, estado: c.estado, indice: r.indice,
+        areas: r.areas.map(({ area, puntaje }) => ({ area, puntaje })),
+      });
+    }
+    return json(serie);
   }
 
   /* ---------- panel de inicio ---------- */
