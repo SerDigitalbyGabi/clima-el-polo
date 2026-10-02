@@ -11,7 +11,9 @@
 
 const Movimiento = (() => {
   const reducido = matchMedia('(prefers-reduced-motion: reduce)');
-  const quieto = () => reducido.matches;
+  // Con la pestaña oculta el navegador congela las animaciones: un cambio que
+  // espera a que termine una se quedaría a medias. Y nadie lo está mirando.
+  const quieto = () => reducido.matches || document.hidden;
 
   /* Posición de un resorte amortiguado en el tiempo t (0..1 de la duración).
      zeta < 1 rebota un poco; zeta = 1 llega sin pasarse. La rigidez se elige

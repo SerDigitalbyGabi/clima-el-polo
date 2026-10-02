@@ -54,9 +54,10 @@
     <section class="view on" id="v-inicio">
       <div class="head">
         <h1 id="saludo">Hola</h1>
-        <p>Esto es todo lo que necesitas revisar hoy.</p>
+        <p id="inicioSub"></p>
       </div>
-      <div id="inicioBody"><p class="vacio">Cargando…</p></div>
+      <ol class="pasos" id="pasos" aria-label="Los pasos de una medición"></ol>
+      <div id="inicioPrincipal" aria-live="polite"></div>
     </section>
 
     <!-- ============ COLABORADORES ============ -->
@@ -225,5 +226,6 @@
 <script src="/animacion.js"></script>
 <script src="/archivo.js"></script>
 <script src="/panel.js"></script>
+<script src="/inicio.js"></script>
 </body>
 </html>

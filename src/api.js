@@ -442,56 +442,80 @@ export async function api(req, env, url, ctx) {
   if (ruta === '/panel') {
     const a = await ajustes(db);
     const minimo = Number(a.minimo_anonimato || 4);
-    const activa = await db.prepare(
-      "SELECT * FROM campanas WHERE estado = 'abierta' ORDER BY id DESC LIMIT 1"
+
+    const gente = await db.prepare(
+      'SELECT COUNT(*) AS n, COUNT(DISTINCT area_id) AS areas FROM colaboradores WHERE activo = 1'
     ).first();
+
+    const conConteos = `SELECT c.*,
+        (SELECT COUNT(*) FROM campana_preguntas cp WHERE cp.campana_id = c.id) AS n_preguntas,
+        (SELECT COUNT(*) FROM invitaciones i WHERE i.campana_id = c.id) AS invitados,
+        (SELECT COUNT(*) FROM invitaciones i WHERE i.campana_id = c.id AND i.respondida_en IS NOT NULL) AS respondieron
+      FROM campanas c`;
+    const ultima = await db.prepare(`${conConteos} ORDER BY c.id DESC LIMIT 1`).first();
+    const borrador = await db.prepare(`${conConteos} WHERE c.estado = 'borrador' ORDER BY c.id DESC LIMIT 1`).first();
+    const activa = await db.prepare(`${conConteos} WHERE c.estado = 'abierta' ORDER BY c.id DESC LIMIT 1`).first();
 
     const { results: cerradas } = await db.prepare(
       "SELECT id, nombre, periodo FROM campanas WHERE estado = 'cerrada' ORDER BY id"
     ).all();
 
-    // serie historica para el grafico
+    // Serie histórica. Una medición con menos respuestas que el mínimo no
+    // entra: su promedio general sería casi el de cada persona.
     const historico = [];
     for (const c of cerradas.slice(-8)) {
       const r = await calcular(db, c.id, minimo);
+      if (r.respondieron < minimo) continue;
       historico.push({
-        id: c.id, periodo: c.periodo || c.nombre,
+        id: c.id, nombre: c.nombre, periodo: c.periodo || c.nombre,
         indice: r.indice, participacion: r.participacion,
+        respondieron: r.respondieron, invitados: r.invitados,
         areas: r.areas.map(({ area, puntaje }) => ({ area, puntaje })),
       });
     }
 
+    // La encuesta en curso solo necesita conteos: quién respondió, no qué.
     let curso = null;
     if (activa) {
-      const r = await calcular(db, activa.id, minimo);
-      const { results: pend } = await db.prepare(
-        `SELECT a.nombre AS area, COUNT(*) AS faltan
+      const { results: porArea } = await db.prepare(
+        `SELECT a.nombre AS area, COUNT(*) AS invitados,
+                SUM(CASE WHEN i.respondida_en IS NOT NULL THEN 1 ELSE 0 END) AS respondieron
            FROM invitaciones i
            JOIN colaboradores c ON c.id = i.colaborador_id
            JOIN areas a ON a.id = c.area_id
-          WHERE i.campana_id = ? AND i.respondida_en IS NULL
-          GROUP BY a.nombre ORDER BY faltan DESC`
+          WHERE i.campana_id = ?
+          GROUP BY a.nombre ORDER BY a.nombre`
       ).bind(activa.id).all();
-      const { _crudo, ...publico } = r;
-      curso = { campana: activa, ...publico, pendientesPorArea: pend };
+      curso = {
+        campana: activa,
+        invitados: activa.invitados,
+        respondieron: activa.respondieron,
+        participacion: activa.invitados ? activa.respondieron / activa.invitados : null,
+        porArea,
+      };
     }
 
     const acciones = await db.prepare(
       `SELECT
          SUM(CASE WHEN estado = 'cerrada'  THEN 1 ELSE 0 END) AS cerradas,
          SUM(CASE WHEN estado = 'sugerida' THEN 1 ELSE 0 END) AS abiertas,
-         SUM(CASE WHEN estado = 'curso'    THEN 1 ELSE 0 END) AS curso
+         SUM(CASE WHEN estado = 'curso'    THEN 1 ELSE 0 END) AS curso,
+         SUM(CASE WHEN estado IN ('sugerida', 'curso') THEN 1 ELSE 0 END) AS pendientes
        FROM acciones`
     ).first();
 
-    const activos = await db.prepare(
-      'SELECT COUNT(*) AS n FROM colaboradores WHERE activo = 1'
-    ).first();
+    const { results: proximas } = await db.prepare(
+      `SELECT id, titulo, prioridad, responsable, estado FROM acciones
+        WHERE estado IN ('sugerida', 'curso')
+        ORDER BY CASE prioridad WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END, id
+        LIMIT 3`
+    ).all();
 
     return json({
       organizacion: a.organizacion,
-      colaboradores: activos.n,
-      curso, historico, acciones, minimo,
+      colaboradores: gente.n,
+      areas: gente.areas,
+      ultima, borrador, curso, historico, acciones, proximas, minimo,
     });
   }
 

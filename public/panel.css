@@ -7,6 +7,9 @@
   --shadow:0 1px 2px rgba(24,35,83,.06), 0 8px 24px rgba(24,35,83,.06);
 }
 *{box-sizing:border-box}
+/* hidden siempre gana: si no, un display:flex de una clase lo pisa y aparece
+   una insignia en 0 o la etiqueta de ejemplo donde no corresponde */
+[hidden]{display:none !important}
 html,body{margin:0;padding:0}
 body{
   font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -216,6 +219,64 @@ td.name{font-weight:500}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.mal{background:var(--alert)}
 
+/* ---------- inicio: los cinco pasos ---------- */
+.pasos{list-style:none;margin:0 0 18px;padding:18px 20px;display:grid;grid-template-columns:repeat(5,1fr);
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.paso{display:flex;flex-direction:column;gap:10px;min-width:0;padding-right:10px}
+.paso:last-child{padding-right:0}
+.paso .cabeza{display:flex;align-items:center}
+.paso .circulo{width:28px;height:28px;flex:0 0 28px;border-radius:50%;border:2px solid var(--line);background:#fff;
+  color:var(--muted);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;
+  font-weight:600;font-size:13px;
+  transition:background var(--dur-firme,240ms) var(--resorte-firme,ease-out),border-color var(--dur-firme,240ms) var(--resorte-firme,ease-out),color var(--dur-firme,240ms) var(--resorte-firme,ease-out)}
+.paso .union{flex:1;height:2px;margin:0 8px;background:var(--line);border-radius:2px;overflow:hidden}
+.paso .union i{display:block;height:100%;background:var(--ok);transform:scaleX(0);transform-origin:left;
+  transition:transform var(--dur-suave,380ms) var(--resorte-suave,ease-out)}
+.paso:last-child .union{visibility:hidden}
+.paso[data-estado=hecho] .union i{transform:scaleX(1)}
+.paso[data-estado=activo] .circulo{background:var(--blue);border-color:var(--blue);color:#fff}
+.paso[data-estado=hecho] .circulo{background:var(--ok);border-color:var(--ok);color:#fff}
+.paso .texto{display:flex;flex-direction:column;gap:3px;min-width:0}
+.paso .titulo{font-family:'Outfit',sans-serif;font-weight:600;font-size:14px;color:var(--navy)}
+.paso .linea{font-size:12.5px;color:var(--muted);line-height:1.45}
+.paso[data-estado=pendiente] .titulo,.paso[data-estado=pendiente] .linea{opacity:.55}
+.paso .accionPaso:not(:empty){margin-top:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* el botón que se vuelve barra de progreso y termina en check */
+.btn.carga{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn.carga:disabled{opacity:1;cursor:default}
+.btn.carga.cargando{background:var(--tint);border-color:var(--tint-line);color:var(--navy);min-width:230px}
+.btn.carga .barrita{flex:1;min-width:80px;height:6px;background:#fff;border-radius:100px;overflow:hidden}
+.btn.carga .barrita i{display:block;height:100%;width:0;background:var(--blue);border-radius:100px;
+  transition:width var(--dur-suave,380ms) var(--resorte-suave,ease-out)}
+.btn.carga.hecho{background:none;border-color:transparent;color:var(--ok);padding-left:0;padding-right:0}
+
+/* ---------- inicio: la tarjeta del momento ---------- */
+.principal h2{font-size:21px}
+.enlace{background:none;border:0;padding:0;color:var(--blue);font-size:13.5px;font-weight:500;text-align:left}
+.enlace:hover{text-decoration:underline}
+.mt8{margin-top:8px}
+.tasa{font-size:15px;margin:2px 0 12px;color:var(--ink)}
+.tasa .cuenta{font-family:'Outfit',sans-serif;font-size:26px;font-weight:700;color:var(--navy);
+  font-variant-numeric:tabular-nums}
+.track.grande{height:10px}
+.arearow.conteo{grid-template-columns:1fr 120px 64px}
+.d.up{color:var(--ok)}.d.down{color:var(--alert)}.d.flat{color:var(--muted)}
+.principal .d{font-size:13px;margin-top:4px}
+.cierre{display:grid;grid-template-columns:auto 1fr 1fr;gap:28px;align-items:start;margin-top:4px}
+.cifra{display:flex;align-items:baseline;gap:6px;white-space:nowrap;font-family:'Outfit',sans-serif;color:var(--navy);line-height:1}
+.cifra span{font-size:52px;font-weight:700;letter-spacing:-.02em}
+.cifra small{font-size:14px;color:var(--muted);font-weight:500}
+.cierre .arearow{grid-template-columns:1fr 70px 34px}
+.etq{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:8px}
+.separa{height:1px;background:var(--line);margin:20px 0 16px}
+.proximas{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.proxima{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:14px}
+.proxima .pri{font-size:11px;letter-spacing:.04em;padding:3px 9px;border-radius:100px;margin-top:1px}
+.proxima .tit{font-weight:500}
+.proxima .muted{font-size:12.5px}
+
 /* ---------- pantallas de entrada ---------- */
 .centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
   background:var(--navy-deep)}
@@ -240,8 +301,17 @@ td.name{font-weight:500}
   .status .big{text-align:left}
 }
 
+@media (max-width:1100px){
+  .cierre{grid-template-columns:1fr 1fr}
+  .cierre > :first-child{grid-column:1 / -1}
+}
+
 /* en el celular la barra superior deja solo lo indispensable */
 @media (max-width:640px){
+  .pasos{grid-template-columns:1fr;gap:14px;padding:16px}
+  .paso{flex-direction:row;align-items:flex-start;gap:12px;padding-right:0}
+  .paso .union{display:none}
+  .cierre{grid-template-columns:1fr;gap:18px}
   .topbar{gap:8px;padding:0 12px}
   .topbar .client,.topbar .sep,.brand span,.brand small,#quienSoy{display:none}
   .ejemplo{gap:6px}

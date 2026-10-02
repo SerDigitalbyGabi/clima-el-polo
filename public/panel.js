@@ -77,150 +77,7 @@ document.getElementById('btnSalir').addEventListener('click', async () => {
   location.href = '/entrar';
 });
 
-/* ============================================================
-   INICIO
-   ============================================================ */
-cargadores.inicio = async () => {
-  const d = await api('/panel');
-  document.getElementById('org').textContent = d.organizacion || '—';
-
-  const cont = document.getElementById('inicioBody');
-  cont.innerHTML = '';
-
-  if (!d.curso && !d.historico.length) {
-    cont.append(el('div', { class: 'card' }, el('div', { class: 'pad' }, [
-      el('h3', { text: 'Todavía no hay ninguna medición' }),
-      el('p', { class: 'vacio', text: `Hay ${d.colaboradores} colaboradores cargados. El siguiente paso es crear una medición, elegir las preguntas y enviarla.` }),
-      el('button', { class: 'btn', onclick: () => ir(d.colaboradores ? 'medicion' : 'personas'),
-        text: d.colaboradores ? 'Crear la primera medición' : 'Cargar colaboradores' }),
-    ])));
-    return;
-  }
-
-  /* --- estado de la campaña en curso --- */
-  if (d.curso) {
-    const c = d.curso;
-    const faltan = c.invitados - c.respondieron;
-    cont.append(el('div', { class: 'status' }, [
-      el('div', {}, [
-        el('h2', { text: c.campana.nombre }),
-        el('div', { class: 'sub', text: c.campana.cierra_en ? `Cierra el ${fecha(c.campana.cierra_en)}` : 'Sin fecha de cierre' }),
-        el('div', { class: 'bar' }, el('i', { style: `width:${Math.round((c.participacion || 0) * 100)}%` })),
-        el('div', { class: 'legend' }, [
-          el('span', { html: `<b>${c.respondieron}</b> respondieron` }),
-          el('span', { html: `<b>${faltan}</b> pendientes` }),
-          el('span', { html: `<b>${c.invitados}</b> invitados` }),
-        ]),
-        el('div', { class: 'row mt16' }, [
-          faltan > 0 ? el('button', { class: 'btn light sm', text: `Recordarles a los ${faltan} que faltan`,
-            onclick: () => ir('envio') }) : null,
-          el('button', { class: 'btn light sm', text: 'Ver resultados', onclick: () => ir('resultados') }),
-        ]),
-      ]),
-      el('div', { class: 'big' }, [
-        el('em', { text: pct(c.participacion) }),
-        el('span', { text: 'participación' }),
-      ]),
-    ]));
-  }
-
-  /* --- tiles --- */
-  const ult = d.historico[d.historico.length - 1];
-  const penult = d.historico[d.historico.length - 2];
-  const indiceHoy = d.curso?.indice ?? ult?.indice;
-  const indiceAntes = d.curso ? ult?.indice : penult?.indice;
-  const delta = indiceHoy != null && indiceAntes != null ? indiceHoy - indiceAntes : null;
-
-  const peor = (d.curso?.areas || ult?.areas || []).filter((a) => a.puntaje != null)[0];
-
-  const tiles = el('div', { class: 'grid g4 mt24' }, [
-    el('div', { class: 'tile' }, [
-      el('div', { class: 'k', text: num(indiceHoy) }),
-      el('div', { class: 'l', text: 'Índice de clima (de 10)' }),
-      el('div', { class: 'd ' + (delta == null ? 'flat' : delta >= 0 ? 'up' : 'down'),
-        text: delta == null ? 'Primera medición' : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)} vs. la anterior` }),
-    ]),
-    el('div', { class: 'tile' }, [
-      el('div', { class: 'k', text: pct(d.curso?.participacion ?? ult?.participacion) }),
-      el('div', { class: 'l', text: 'Participación' }),
-      el('div', { class: 'd flat', text: `${d.colaboradores} colaboradores activos` }),
-    ]),
-    el('div', { class: 'tile' }, [
-      el('div', { class: 'k', text: peor ? num(peor.puntaje) : '—' }),
-      el('div', { class: 'l', text: peor ? `Área más baja: ${peor.area}` : 'Sin desglose por área todavía' }),
-      el('div', { class: 'd flat', text: peor ? `${peor.n} respuestas` : `Se muestra desde ${d.minimo} respuestas por área` }),
-    ]),
-    el('div', { class: 'tile', style: 'cursor:pointer', onclick: () => ir('acciones') }, [
-      el('div', { class: 'k', text: String(d.acciones?.cerradas || 0) }),
-      el('div', { class: 'l', text: 'Acciones de mejora cerradas' }),
-      el('div', { class: 'd flat', text: `${d.acciones?.abiertas || 0} sin atender · ${d.acciones?.curso || 0} en curso` }),
-    ]),
-  ]);
-  cont.append(tiles);
-
-  const pendientes = (d.acciones?.abiertas || 0);
-  const badge = document.getElementById('railBadge');
-  badge.hidden = pendientes === 0;
-  badge.textContent = String(pendientes);
-
-  /* --- gráfico + pendientes --- */
-  const split = el('div', { class: 'split mt24' });
-
-  const cardG = el('div', { class: 'card' }, el('div', { class: 'pad' }, [
-    el('div', { class: 'card-title' }, [
-      el('h3', { text: 'Cómo viene el clima medición a medición' }),
-      el('span', { class: 'note', text: 'Toca un área para compararla' }),
-    ]),
-    el('div', { class: 'legendrow', id: 'climaLeg' }),
-    el('div', { class: 'chartwrap', id: 'climaChart' }),
-  ]));
-  split.append(cardG);
-
-  const listaPend = el('div', { class: 'arealist' });
-  const pend = d.curso?.pendientesPorArea || [];
-  if (pend.length) {
-    const max = Math.max(...pend.map((p) => p.faltan));
-    for (const p of pend) {
-      const r = p.faltan / max;
-      listaPend.append(el('div', { class: 'arearow' }, [
-        el('span', { text: p.area }),
-        el('div', { class: 'track' }, el('i', { class: r > .66 ? 'bad' : r > .33 ? 'low' : '',
-          style: `width:${Math.round(r * 100)}%` })),
-        el('span', { class: 'val', text: String(p.faltan) }),
-      ]));
-    }
-  } else {
-    listaPend.append(el('p', { class: 'vacio',
-      text: d.curso ? 'Respondieron todos. No falta nadie.' : 'No hay ninguna medición abierta.' }));
-  }
-
-  const cardP = el('div', { class: 'card' }, el('div', { class: 'pad' }, [
-    el('div', { class: 'card-title' }, el('h3', { text: 'Quién falta por responder' })),
-    listaPend,
-    avisoDeArea(d.curso),
-  ]));
-  split.append(cardP);
-  cont.append(split);
-
-  dibujarClima(d.historico, d.curso);
-};
-
-function avisoDeArea(curso) {
-  if (!curso) return null;
-  const peor = (curso.areas || []).filter((a) => a.puntaje != null)[0];
-  if (!peor || peor.puntaje >= 7) return null;
-  const dim = (curso.dimensiones || []).filter((x) => x.puntaje != null)[0];
-  return el('div', { class: 'flag ' + (peor.puntaje < 6 ? 'grave' : '') + ' mt16' }, [
-    el('span', { class: 'dot' }),
-    el('p', {}, [
-      el('b', { text: `${peor.area} necesita una mirada. ` }),
-      document.createTextNode(
-        `Promedia ${num(peor.puntaje)} sobre ${peor.n} respuestas` +
-        (dim ? `, y lo más bajo de toda la medición es "${dim.etiqueta}" con ${num(dim.puntaje)}.` : '.')
-      ),
-    ]),
-  ]);
-}
+/* El Inicio vive en inicio.js. */
 
 /* ---------- gráfico de líneas ---------- */
 const COLORES = ['#22306E', '#4F6BE8', '#1FA97A', '#E0A32E', '#D9534F', '#7E97F5', '#8E6BC9'];
@@ -992,17 +849,29 @@ document.getElementById('btnBorrarEjemplo').addEventListener('click', async (e) 
 });
 
 /* ---------- arranque ---------- */
-(async () => {
+/* El saludo usa el nombre de la persona, no el de la cuenta: si la cuenta
+   tiene un nombre genérico, se saluda sin nombre antes que decir
+   "Buenas tardes, Administración". */
+const NOMBRES_DE_CUENTA = new Set(['administración', 'administracion', 'cuenta de prueba', 'admin', 'prueba']);
+function primerNombre(nombre) {
+  const n = String(nombre || '').trim();
+  if (!n || NOMBRES_DE_CUENTA.has(n.toLowerCase())) return null;
+  return n.split(/\s+/)[0];
+}
+
+// espera a que estén cargados todos los scripts: el Inicio vive en inicio.js
+document.addEventListener('DOMContentLoaded', async () => {
   try {
     const yo = await api('/yo');
     document.getElementById('ejemplo').hidden = !yo.datosEjemplo;
     document.getElementById('quienSoy').textContent = yo.nombre;
     document.getElementById('org').textContent = yo.organizacion || '—';
     const hora = new Date().getHours();
-    document.getElementById('saludo').textContent =
-      `${hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'}, ${yo.nombre.split(' ')[0]}`;
+    const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+    const nombre = primerNombre(yo.nombre);
+    document.getElementById('saludo').textContent = nombre ? `${saludo}, ${nombre}` : saludo;
     await cargadores.inicio();
   } catch (e) {
     toast(e.message, true);
   }
-})();
+});
