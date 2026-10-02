@@ -35,6 +35,11 @@ function manual({ persona, enlace, remitente }) {
            wa: `https://wa.me/${normalizarTelefono(persona.telefono) || ''}?text=${encodeURIComponent(texto)}` };
 }
 
+/* Meta da de baja cada versión de la Graph API unos dos años después de
+   lanzarla (la v20 cayó el 24/09/2026). v25.0 vence en julio de 2028:
+   antes de esa fecha hay que subir este número y probar un envío. */
+const VERSION_META = 'v25.0';
+
 /* ---------- Meta Cloud API ----------
    El mensaje tiene que ser una plantilla aprobada. Los {{1}}, {{2}}... se llenan
    con 'parameters' en el mismo orden en que aparecen en la plantilla. */
@@ -43,7 +48,7 @@ async function meta({ persona, enlace, env }) {
   if (!numero) return { ok: false, error: 'La persona no tiene teléfono cargado.' };
 
   const r = await fetch(
-    `https://graph.facebook.com/v21.0/${env.WA_PHONE_ID}/messages`,
+    `https://graph.facebook.com/${VERSION_META}/${env.WA_PHONE_ID}/messages`,
     {
       method: 'POST',
       headers: {

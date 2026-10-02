@@ -123,22 +123,37 @@ Lo que hace falta:
    acepta documentos tributarios y hay caminos para personas naturales con
    negocio, aunque es más quisquilloso que con una empresa constituida.
 
-4. **Una plantilla aprobada.** Todo mensaje que inicia el negocio tiene que ser
-   una plantilla revisada por Meta. Categoría Utility (más barata). Debe llevar
-   un botón de URL dinámica: ahí va el token del link personal. El nombre de la
-   plantilla se configura con `WA_PLANTILLA`.
+4. **Una tarjeta en el portafolio.** Meta no deja mandar plantillas sin un medio
+   de pago, aunque la cuenta no esté verificada. Tiene que aceptar cargos
+   internacionales en línea.
 
-5. **Un System User para el token.** No uses un token de usuario personal: caduca
+5. **Una plantilla aprobada.** Todo mensaje que inicia el negocio tiene que ser
+   una plantilla revisada por Meta. Así la espera el código:
+   - Nombre `invitacion_encuesta_clima`, categoría **Utility**, idioma anotado
+     (`es`, `es_MX`… no son intercambiables).
+   - Cuerpo con `{{1}}` = primer nombre y `{{2}}` = quién firma.
+   - Botón de **URL dinámica**: `https://clima.ccelpolo.com/e/{{1}}`. El código
+     manda solo el token.
+
+6. **Un System User para el token.** No uses un token de usuario personal: caduca
    a los 60 días y queda atado a una persona. Un System User da un token
    permanente y desacopla la operación de cualquier cuenta individual.
+   Permisos: `whatsapp_business_messaging`, `whatsapp_business_management`,
+   `business_management`. Caducidad: nunca.
 
-Credenciales:
+Credenciales: el token es secreto; el resto va como `vars` en `wrangler.jsonc`.
+En PowerShell, un comando por línea (no acepta `&&`):
 
-```bash
-npx wrangler secret put WA_TOKEN
-npx wrangler secret put WA_PHONE_ID
-npx wrangler secret put WA_PLANTILLA
+```powershell
+cd C:\Users\Gabriela\clima-el-polo
+npx wrangler pages secret put WA_TOKEN --project-name clima-el-polo
 ```
+
+`WA_PHONE_ID`, `WA_PLANTILLA` y `WA_IDIOMA` van en `vars`. Después de cambiar
+secretos o variables hay que volver a desplegar (`npm run deploy`).
+
+La versión de la Graph API está en `src/envio.js` (`VERSION_META`). Meta da de
+baja cada versión unos dos años después de lanzarla.
 
 #### Quién es dueño de la cuenta y quién paga
 
@@ -170,12 +185,12 @@ lo ve, porque no entra a Meta en ningún momento.
 Onboarding más guiado que Meta, a cambio de un markup por mensaje. Útil si el
 trámite con Meta se traba.
 
-```bash
-npx wrangler secret put TWILIO_SID
-npx wrangler secret put TWILIO_TOKEN
-npx wrangler secret put TWILIO_FROM
-npx wrangler secret put TWILIO_PLANTILLA   # opcional, ContentSid
+```powershell
+npx wrangler pages secret put TWILIO_SID --project-name clima-el-polo
+npx wrangler pages secret put TWILIO_TOKEN --project-name clima-el-polo
 ```
+
+`TWILIO_FROM` y `TWILIO_PLANTILLA` (opcional, ContentSid) van en `vars`.
 
 ### Costo
 
@@ -188,18 +203,23 @@ documentación de precios de la plataforma de WhatsApp Business.
 
 ## Correo (Resend)
 
-Se usa para mandarle a cada jefe de área la acción que quedó a su cargo.
+Se usa para mandarle a cada jefe de área la acción que quedó a su cargo, y para
+mandarle a un colaborador su link de la encuesta ("Por correo", en *Enviar la
+encuesta*).
 
-1. Crea la API key en Resend.
-2. Verifica el dominio con los registros SPF y DKIM. Como el DNS ya está en
-   Cloudflare, se ponen ahí mismo.
-3. Carga las credenciales:
+**Estado en producción:** activo. Dominio `ccelpolo.com` verificado, remitente
+`clima@ccelpolo.com` (un grupo de Google de El Polo cuya propietaria es MAG).
 
-```bash
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put CORREO_DESDE     # ej. plataforma@magconsulting.pe
-npx wrangler secret put CORREO_NOMBRE    # ej. MAG Consulting
+1. Crea la API key en Resend (Sending access, dominio `ccelpolo.com`).
+2. Verifica el dominio con los registros DNS que da Resend.
+3. Carga la clave (secreta) y redespliega:
+
+```powershell
+npx wrangler pages secret put RESEND_API_KEY --project-name clima-el-polo
 ```
+
+`CORREO_DESDE` está en `vars` de `wrangler.jsonc`. `CORREO_NOMBRE` (opcional)
+firma los correos de acciones; las invitaciones firman con el remitente de Ajustes.
 
 El plan gratuito da 3.000 correos al mes y 100 por día: sobra de lejos.
 
