@@ -65,7 +65,8 @@ function ir(id) {
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('on'));
   document.getElementById('v-' + id).classList.add('on');
   document.querySelectorAll('.rail button').forEach((b) => b.classList.toggle('on', b.dataset.go === id));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // el scroll suave del navegador puede pasar de los 400 ms: va directo
+  window.scrollTo({ top: 0 });
   if (cargadores[id]) cargadores[id]().catch((e) => toast(e.message, true));
 }
 document.querySelectorAll('[data-go]').forEach((b) =>
