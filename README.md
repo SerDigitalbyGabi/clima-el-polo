@@ -263,9 +263,25 @@ src/
   sugerencias.js  reglas que convierten resultados en acciones concretas
   envio.js        drivers de WhatsApp (manual / meta / twilio)
   correo.js       Resend
-public/           panel, encuesta y pantallas de entrada
+  ejemplo.js      datos de ejemplo: generarlos y borrarlos
+public/
+  panel.js        helpers, navegación y las pantallas sin archivo propio
+  inicio.js       Inicio: los cinco pasos y la tarjeta de cada momento
+  resultados.js   Resultados, con el gráfico de evolución
+  animacion.js    Movimiento: los resortes y cómo se transforma un elemento
+  archivo.js      leer la lista del equipo desde Excel o CSV
+  encuesta.*      la encuesta que responde cada colaborador
 migrations/       esquema y banco de preguntas
+build.js          arma dist/ para Pages
 ```
+
+### Movimiento
+
+Las reglas de diseño viven en `public/animacion.js` y se aplican en todo el panel:
+solo se anima en respuesta a una acción o a un dato que cambió, nunca al cargar;
+un elemento se transforma en vez de aparecer y desaparecer; resortes con rebote
+mínimo y nada dura más de 400 ms. Con `prefers-reduced-motion`, o con la pestaña
+oculta, los cambios son instantáneos.
 
 ### Cómo se calcula el puntaje
 
