@@ -226,6 +226,31 @@ npx wrangler d1 migrations apply clima-el-polo --remote
 npm run deploy
 ```
 
+### Datos de ejemplo
+
+Para ver la plataforma con datos sin tocar los reales: **https://demo.clima-el-polo.pages.dev**
+
+- Es el entorno de *preview* de Pages, con **su propia base** (`clima-demo`). La base
+  de producción no se entera de que existe.
+- Trae 48 colaboradores en 5 áreas, T2 y T3 2026 cerradas, T4 en curso, 12
+  comentarios escritos y 5 acciones. Administración queda bajo el umbral de
+  anonimato a propósito, para que se vea el área oculta.
+- Mientras hay datos de ejemplo, la barra superior lo dice y ofrece "Borrar y
+  empezar con mis datos". En ese modo no se puede cargar gente real ni se envía
+  nada por WhatsApp o correo.
+- Solo se cargan si el entorno tiene `PERMITIR_DATOS_EJEMPLO=1` (preview sí,
+  producción no) **y** la base está vacía.
+
+Volver a cargarlos desde cero (borra los de ejemplo y los vuelve a generar):
+
+```bash
+npm run deploy:demo
+curl -X POST https://demo.clima-el-polo.pages.dev/api/ejemplo/cargar -b <cookie de sesión>
+```
+
+En local: `npm run dev:ejemplo` levanta el panel en el puerto 8795 con una base
+aparte (`.wrangler/demo`).
+
 ### Estructura
 
 ```

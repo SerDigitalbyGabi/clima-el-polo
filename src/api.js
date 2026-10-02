@@ -6,6 +6,7 @@ import { valorDeOpcion, promedio, rangoAntiguedad, ocultarSiEsChico, temasRepeti
 import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono } from './envio.js';
 import { enviarCorreo, cuerpoAccion, correoDisponible } from './correo.js';
 import { sugerir } from './sugerencias.js';
+import { MARCA, enModoEjemplo, cargarEjemplo, borrarEjemplo } from './ejemplo.js';
 
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), {
@@ -14,6 +15,9 @@ const json = (data, status = 200, extra = {}) =>
   });
 
 const error = (msg, status = 400) => json({ error: msg }, status);
+
+const NO_ENVIAR_EN_EJEMPLO = 'Estás viendo datos de ejemplo: no se envía nada por WhatsApp ni por correo.';
+const NO_MEZCLAR_CON_EJEMPLO = 'Estás viendo datos de ejemplo. Para cargar a tu equipo, primero bórralos desde la barra de arriba.';
 
 /* Fecha de hoy en Lima (UTC-5, sin horario de verano). SQLite trabaja en UTC:
    a las 8 de la noche en Lima, date('now') ya dice mañana. */
@@ -222,7 +226,22 @@ export async function api(req, env, url, ctx) {
       },
       // 'correo' ya es el del admin: la bandera de Resend va con otro nombre
       correoListo: correoDisponible(env),
+      datosEjemplo: a[MARCA] === '1',
     });
+  }
+
+  /* ---------- datos de ejemplo ---------- */
+  if (ruta === '/ejemplo/cargar' && metodo === 'POST') {
+    // en producción esta ruta no existe: el entorno tiene que permitirla
+    if (env.PERMITIR_DATOS_EJEMPLO !== '1') return error('No existe esa ruta.', 404);
+    const r = await cargarEjemplo(db);
+    return r.error ? error(r.error, 409) : json(r);
+  }
+
+  if (ruta === '/ejemplo/borrar' && metodo === 'POST') {
+    if (!(await enModoEjemplo(db))) return error('No hay datos de ejemplo para borrar.', 409);
+    await borrarEjemplo(db);
+    return json({ ok: true });
   }
 
   if (ruta === '/ajustes') {
@@ -272,6 +291,7 @@ export async function api(req, env, url, ctx) {
       return json(results.map((c) => ({ ...c, antiguedad: rangoAntiguedad(c.ingreso) })));
     }
     if (metodo === 'POST') {
+      if (await enModoEjemplo(db)) return error(NO_MEZCLAR_CON_EJEMPLO, 409);
       const { nombre, area_id, telefono, ingreso } = cuerpo;
       if (!nombre || !area_id) return error('Falta el nombre o el área.');
       const r = await db.prepare(
@@ -301,6 +321,7 @@ export async function api(req, env, url, ctx) {
   }
 
   if (ruta === '/colaboradores/importar' && metodo === 'POST') {
+    if (await enModoEjemplo(db)) return error(NO_MEZCLAR_CON_EJEMPLO, 409);
     return importar(db, cuerpo.texto || '');
   }
 
@@ -374,6 +395,7 @@ export async function api(req, env, url, ctx) {
     }
 
     if (accion === 'enviar' && metodo === 'POST') {
+      if (await enModoEjemplo(db)) return error(NO_ENVIAR_EN_EJEMPLO, 403);
       return enviar(db, env, url, id, cuerpo, campana);
     }
 
@@ -488,6 +510,7 @@ export async function api(req, env, url, ctx) {
     const accion = (mAcc[2] || '').slice(1);
 
     if (accion === 'enviar' && metodo === 'POST') {
+      if (await enModoEjemplo(db)) return error(NO_ENVIAR_EN_EJEMPLO, 403);
       const a = await db.prepare('SELECT * FROM acciones WHERE id = ?').bind(id).first();
       if (!a) return error('Esa acción no existe.', 404);
       const destino = cuerpo.correo || a.correo;

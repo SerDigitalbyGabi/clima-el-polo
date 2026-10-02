@@ -8,7 +8,9 @@
     "dev": "npm run build && wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist --project-name clima-el-polo",
     "db:local": "wrangler d1 migrations apply clima-el-polo --local",
-    "db:remote": "wrangler d1 migrations apply clima-el-polo --remote"
+    "db:remote": "wrangler d1 migrations apply clima-el-polo --remote",
+    "dev:ejemplo": "npm run build && wrangler pages dev dist --port 8795 --persist-to .wrangler/demo --binding PERMITIR_DATOS_EJEMPLO=1",
+    "deploy:demo": "npm run build && wrangler pages deploy dist --project-name clima-el-polo --branch demo"
   },
   "devDependencies": {
     "wrangler": "^4.129.0"

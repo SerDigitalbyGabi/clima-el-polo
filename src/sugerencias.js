@@ -2,7 +2,7 @@
    Reglas explicitas, no un modelo: cada sugerencia dice de que numero salio,
    asi la administracion puede discutirla en vez de tener que creerle. */
 
-const BANCO = {
+export const BANCO = {
   recursos: {
     titulo: 'Reponer herramientas y materiales en {area}',
     detalle: 'Junta al equipo 30 minutos y armen entre todos la lista de lo que falta o está malogrado. Cotiza esa lista y compra lo aprobado dentro del mes. Cuando llegue, avisa por el grupo del área que salió de lo que ellos pidieron.',
@@ -80,7 +80,7 @@ const UMBRAL_AREA = 6.8;      // debajo de esto el area entra al plan
 const CAIDA = 0.8;            // caida vs. medicion anterior que enciende alerta
 const CONCENTRADO = 0.8;      // diferencia que vuelve el problema de un area puntual
 
-const llenar = (t, area) => String(t).replace(/\{area\}/g, area || 'el área');
+export const llenar = (t, area) => String(t).replace(/\{area\}/g, area || 'el área');
 
 export function sugerir({ dimensiones, areas, participacion, comentarios, temas, anterior }) {
   const out = [];

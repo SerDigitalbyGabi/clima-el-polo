@@ -33,12 +33,22 @@ button{font-family:inherit;font-size:inherit;cursor:pointer}
 .brand span{font-size:17px}
 .brand small{font-weight:500;font-size:12px;opacity:.7;letter-spacing:.06em}
 .topbar .sep{width:1px;height:26px;background:rgba(255,255,255,.22)}
-.topbar .client{font-size:13.5px;color:rgba(255,255,255,.82)}
+.topbar .client{font-size:13.5px;color:rgba(255,255,255,.82);
+  flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .yo span{white-space:nowrap}
 .topbar .client b{color:#fff;font-weight:500}
 .topbar .yo{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(255,255,255,.75)}
 .topbar .yo button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);
   color:#C9D6FF;border-radius:100px;padding:5px 12px;font-size:12.5px}
 .topbar .yo button:hover{background:rgba(255,255,255,.2)}
+.ejemplo{margin-left:auto;display:flex;align-items:center;gap:8px}
+.ejemplo + .yo{margin-left:6px}
+.ejemplo .etiqueta{font-size:12px;letter-spacing:.03em;padding:4px 10px;border-radius:100px;
+  background:rgba(224,163,46,.2);color:#FFD98A;border:1px solid rgba(224,163,46,.45);white-space:nowrap}
+.ejemplo button{background:none;border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:100px;
+  padding:4px 11px;font-size:12.5px;white-space:nowrap}
+.ejemplo button:hover{background:rgba(255,255,255,.12)}
+.ejemplo .corto{display:none}
 
 /* ---------- shell ---------- */
 .shell{display:flex;min-height:calc(100vh - 58px);align-items:stretch}
@@ -226,4 +236,15 @@ td.name{font-weight:500}
   .split,.g2,.g3,.g4{grid-template-columns:1fr}
   .status{grid-template-columns:1fr}
   .status .big{text-align:left}
+}
+
+/* en el celular la barra superior deja solo lo indispensable */
+@media (max-width:640px){
+  .topbar{gap:8px;padding:0 12px}
+  .topbar .client,.topbar .sep,.brand span,.brand small,#quienSoy{display:none}
+  .ejemplo{gap:6px}
+  .ejemplo .etiqueta{font-size:11px;padding:3px 8px}
+  .ejemplo button,.topbar .yo button{font-size:12px;padding:4px 9px}
+  .ejemplo .largo{display:none}
+  .ejemplo .corto{display:inline}
 }

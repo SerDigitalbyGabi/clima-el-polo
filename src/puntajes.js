@@ -15,9 +15,9 @@ export const promedio = (xs) =>
 
 /* Antiguedad en rangos, nunca en fecha exacta: una fecha de ingreso
    identifica a una persona casi tan bien como su nombre. */
-export function rangoAntiguedad(ingreso) {
+export function rangoAntiguedad(ingreso, referencia = Date.now()) {
   if (!ingreso) return 'sin dato';
-  const meses = (Date.now() - new Date(ingreso).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+  const meses = (referencia - new Date(ingreso).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
   if (meses < 6) return 'menos de 6 meses';
   if (meses < 24) return 'de 6 meses a 2 años';
   if (meses < 60) return 'de 2 a 5 años';

@@ -369,6 +369,16 @@ async function pintarPersonas() {
 document.getElementById('fArea').addEventListener('change', () => pintarPersonas().catch((e) => toast(e.message, true)));
 
 document.getElementById('btnNuevo').addEventListener('click', () => {
+  // sin áreas no hay dónde ubicar a nadie (pasa después de borrar los datos
+  // de ejemplo): la lista completa es la que las crea
+  if (!areasCache.length) {
+    abrirModal('Agregar persona', el('div', {}, [
+      el('p', { class: 'muted', text: 'Todavía no hay áreas. La forma más rápida de empezar es cargar la lista completa del equipo: las áreas se crean solas.' }),
+      el('button', { class: 'btn mt16', text: 'Pegar una lista',
+        onclick: () => { cerrarModal(); document.getElementById('btnImportar').click(); } }),
+    ]));
+    return;
+  }
   const f = el('form', {});
   const sel = el('select', { id: 'nArea', required: true });
   for (const a of areasCache) sel.append(el('option', { value: a.id, text: a.nombre }));
@@ -966,10 +976,25 @@ document.getElementById('btnAjustes').addEventListener('click', async () => {
   } catch (e) { toast(e.message, true); }
 });
 
+/* ---------- datos de ejemplo ---------- */
+document.getElementById('btnBorrarEjemplo').addEventListener('click', async (e) => {
+  if (!confirm('Se borran todos los datos de ejemplo: colaboradores, mediciones, respuestas y acciones. La plataforma queda vacía para cargar a tu equipo. ¿Seguimos?')) return;
+  const boton = e.currentTarget;
+  boton.disabled = true;
+  try {
+    await api('/ejemplo/borrar', { method: 'POST' });
+    location.reload();
+  } catch (e2) {
+    toast(e2.message, true);
+    boton.disabled = false;
+  }
+});
+
 /* ---------- arranque ---------- */
 (async () => {
   try {
     const yo = await api('/yo');
+    document.getElementById('ejemplo').hidden = !yo.datosEjemplo;
     document.getElementById('quienSoy').textContent = yo.nombre;
     document.getElementById('org').textContent = yo.organizacion || '—';
     const hora = new Date().getHours();

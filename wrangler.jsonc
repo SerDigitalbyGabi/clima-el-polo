@@ -17,5 +17,24 @@
       "database_id": "6c94e83f-d6b6-470a-9419-ada061b9154f",
       "migrations_dir": "./migrations"
     }
-  ]
+  ],
+
+  // Preview (cualquier rama que no sea main) usa otra base, con datos de
+  // ejemplo. Producción nunca ve esta base ni la variable que permite
+  // cargarlos: los datos ficticios no pueden cruzarse con los reales.
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "clima-demo",
+          "database_id": "23d5d15e-17b6-4407-9f2c-96683a67747d",
+          "migrations_dir": "./migrations"
+        }
+      ],
+      "vars": {
+        "PERMITIR_DATOS_EJEMPLO": "1"
+      }
+    }
+  }
 }
