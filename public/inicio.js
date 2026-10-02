@@ -20,27 +20,6 @@ let inicioVisto = null;  // lo último que la persona vio acá, para animar solo
 let sondeo = null;       // mientras hay una encuesta en curso, se consulta cada 30 s
 let ultimaCarga = null;  // lo que no entró de la última carga de archivo
 
-const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
-
-const NS_SVG = 'http://www.w3.org/2000/svg';
-function check() {
-  const s = document.createElementNS(NS_SVG, 'svg');
-  s.setAttribute('viewBox', '0 0 16 16');
-  s.setAttribute('width', '14');
-  s.setAttribute('height', '14');
-  s.setAttribute('aria-hidden', 'true');
-  s.classList.add('check');
-  const p = document.createElementNS(NS_SVG, 'polyline');
-  p.setAttribute('points', '3.5,8.5 6.5,11.5 12.5,4.5');
-  p.setAttribute('fill', 'none');
-  p.setAttribute('stroke', 'currentColor');
-  p.setAttribute('stroke-width', '2.2');
-  p.setAttribute('stroke-linecap', 'round');
-  p.setAttribute('stroke-linejoin', 'round');
-  s.append(p);
-  return s;
-}
-
 /* ---------- en qué momento está la empresa ---------- */
 function momento(d) {
   if (!d.colaboradores) return 'vacio';
@@ -55,7 +34,6 @@ const estadosDePasos = (m) => {
   return PASOS.map((_, k) => (k < i ? 'hecho' : k === i ? 'activo' : 'pendiente'));
 };
 
-const hoyLima = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
 function cierraEn(iso) {
   if (!iso) return 'sin fecha de cierre';
   const dias = Math.round((Date.parse(iso + 'T12:00:00Z') - Date.parse(hoyLima() + 'T12:00:00Z')) / 86400e3);
@@ -151,16 +129,6 @@ function controlCarga() {
   return el('div', {}, [boton, input]);
 }
 
-// el mismo elemento cambia de forma: se anima su ancho de lo que era a lo que es
-function transformar(boton, cambio) {
-  const antes = boton.offsetWidth;
-  cambio();
-  const despues = boton.offsetWidth;
-  if (Math.abs(antes - despues) > 1) {
-    Movimiento.animar(boton, [{ width: `${antes}px` }, { width: `${despues}px` }], 'suave');
-  }
-}
-
 async function subirEquipo(archivo, boton) {
   let leido;
   try {
@@ -181,7 +149,7 @@ async function subirEquipo(archivo, boton) {
   const barra = el('span', { class: 'barrita', role: 'progressbar', 'aria-label': 'Carga del equipo',
     'aria-valuemin': 0, 'aria-valuemax': total, 'aria-valuenow': 0 }, relleno);
   const leyenda = el('span', { text: `Cargando 0 de ${total}…` });
-  transformar(boton, () => {
+  Movimiento.ancho(boton, () => {
     boton.disabled = true;
     boton.classList.add('cargando');
     boton.replaceChildren(barra, leyenda);
@@ -205,7 +173,7 @@ async function subirEquipo(archivo, boton) {
     }
   } catch (e) {
     toast(`${e.message} Se cargaron ${agregados} de ${total}. Vuelve a subir el mismo archivo: los que ya entraron no se duplican.`, true);
-    transformar(boton, () => {
+    Movimiento.ancho(boton, () => {
       boton.disabled = false;
       boton.classList.remove('cargando');
       boton.replaceChildren('Cargar colaboradores');
@@ -213,7 +181,7 @@ async function subirEquipo(archivo, boton) {
     return;
   }
 
-  transformar(boton, () => {
+  Movimiento.ancho(boton, () => {
     boton.classList.remove('cargando');
     boton.classList.add('hecho');
     boton.replaceChildren(check(), el('span', { text: plural(agregados, 'colaborador cargado', 'colaboradores cargados') }));

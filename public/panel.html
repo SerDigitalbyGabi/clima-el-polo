@@ -99,27 +99,29 @@
       <div class="split">
         <div class="card">
           <div class="pad">
-            <div class="card-title"><h3>Preguntas</h3><span class="note" id="qCount">0 elegidas</span></div>
+            <div class="card-title">
+              <h3>Preguntas</h3>
+              <span class="note"><b id="qNum">0</b> elegidas</span>
+            </div>
+            <div id="qRepetir"></div>
             <div class="qlist" id="qlist"></div>
           </div>
         </div>
-        <div class="card">
+        <div class="card fija">
           <div class="pad">
             <div class="card-title"><h3>Datos de la medición</h3></div>
             <div class="field">
-              <label class="f" for="mName">Nombre</label>
-              <input id="mName" type="text" placeholder="Clima · T4 2026">
-            </div>
-            <div class="field">
-              <label class="f" for="mPer">Periodo · sale en el gráfico</label>
-              <input id="mPer" type="text" placeholder="T4 2026">
+              <label class="f" for="mPer">Periodo</label>
+              <input id="mPer" type="text" placeholder="T4 2026" autocomplete="off" aria-describedby="mNombre">
+              <p class="muted mt8 armado" id="mNombre"></p>
             </div>
             <div class="field">
               <label class="f" for="mCierra">Cierra el</label>
               <input id="mCierra" type="date">
             </div>
-            <button type="button" class="btn" id="btnCrear">Crear la medición</button>
-            <p class="muted mt16" style="font-size:12.5px">Quedará en borrador. Para que salga, ve a <b>Enviar la encuesta</b>.</p>
+            <div id="mAviso"></div>
+            <p class="resumen" id="mResumen" aria-live="polite"></p>
+            <button type="button" class="btn" id="btnCrear" disabled>Crear la medición</button>
           </div>
         </div>
       </div>

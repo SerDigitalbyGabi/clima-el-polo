@@ -95,6 +95,15 @@ const Movimiento = (() => {
     el.style.overflow = overflow;
   }
 
+  /* El elemento cambia de forma (un botón que pasa a barra, a check): su
+     ancho va de lo que era a lo que es, en vez de saltar. */
+  function ancho(el, cambio) {
+    const antes = el.offsetWidth;
+    cambio();
+    const despues = el.offsetWidth;
+    if (Math.abs(antes - despues) > 1) animar(el, [{ width: `${antes}px` }, { width: `${despues}px` }], 'suave');
+  }
+
   /* Un número cuenta desde el valor anterior hasta el nuevo. */
   function contar(el, desde, hasta, formato = (x) => String(Math.round(x))) {
     if (quieto() || desde === hasta || desde == null) { el.textContent = formato(hasta); return; }
@@ -108,5 +117,5 @@ const Movimiento = (() => {
     requestAnimationFrame(paso);
   }
 
-  return { RESORTES, quieto, animar, altura, reemplazar, contar };
+  return { RESORTES, quieto, animar, altura, reemplazar, ancho, contar };
 })();

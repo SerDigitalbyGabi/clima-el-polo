@@ -250,7 +250,9 @@ td.name{font-weight:500}
 .btn.carga .barrita{flex:1;min-width:80px;height:6px;background:#fff;border-radius:100px;overflow:hidden}
 .btn.carga .barrita i{display:block;height:100%;width:0;background:var(--blue);border-radius:100px;
   transition:width var(--dur-suave,380ms) var(--resorte-suave,ease-out)}
-.btn.carga.hecho{background:none;border-color:transparent;color:var(--ok);padding-left:0;padding-right:0}
+.btn.hecho{display:inline-flex;align-items:center;gap:6px;background:none;border-color:transparent;color:var(--ok);
+  padding-left:0;padding-right:0}
+.btn.hecho:disabled{opacity:1;cursor:default}
 
 /* ---------- inicio: la tarjeta del momento ---------- */
 .principal h2{font-size:21px}
@@ -277,6 +279,15 @@ td.name{font-weight:500}
 .proxima .tit{font-weight:500}
 .proxima .muted{font-size:12.5px}
 
+/* ---------- nueva medición ---------- */
+#v-medicion .split{align-items:start}
+.card.fija{position:sticky;top:74px}
+#qlist .q:not(.sel){opacity:.55}
+.repetir{font-size:13.5px;margin:0 0 12px}
+.repetir.listo{display:flex;align-items:center;gap:6px;color:var(--ok)}
+.armado{font-size:12.5px}
+.resumen{font-size:13px;color:var(--muted);margin:2px 0 14px;line-height:1.5}
+
 /* ---------- pantallas de entrada ---------- */
 .centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
   background:var(--navy-deep)}
@@ -291,6 +302,7 @@ td.name{font-weight:500}
 .caja .pie{margin-top:18px;font-size:12px;color:var(--muted);text-align:center}
 
 @media (max-width:900px){
+  .card.fija{position:static}
   .shell{flex-direction:column}
   .rail{width:auto;flex:none;flex-direction:row;overflow-x:auto;padding:10px}
   .rail .rail-label,.rail .foot{display:none}

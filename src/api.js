@@ -344,7 +344,10 @@ export async function api(req, env, url, ctx) {
       const { results } = await db.prepare(
         `SELECT c.*,
                 (SELECT COUNT(*) FROM invitaciones i WHERE i.campana_id = c.id) AS invitados,
-                (SELECT COUNT(*) FROM invitaciones i WHERE i.campana_id = c.id AND i.respondida_en IS NOT NULL) AS respondieron
+                (SELECT COUNT(*) FROM invitaciones i WHERE i.campana_id = c.id AND i.respondida_en IS NOT NULL) AS respondieron,
+                (SELECT COUNT(*) FROM campana_preguntas cp WHERE cp.campana_id = c.id) AS n_preguntas,
+                -- para "repetir las preguntas de la anterior" y que los resultados se puedan comparar
+                (SELECT GROUP_CONCAT(cp.pregunta_id) FROM campana_preguntas cp WHERE cp.campana_id = c.id) AS preguntas
            FROM campanas c ORDER BY c.id DESC`
       ).all();
       return json(results);

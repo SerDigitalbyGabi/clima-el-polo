@@ -55,6 +55,28 @@ const fecha = (f) => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-PE',
   { day: 'numeric', month: 'long' }) : '—';
 const pct = (x) => x == null ? '—' : Math.round(x * 100) + '%';
 const num = (x) => x == null ? '—' : Number(x).toFixed(1);
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+// hoy en Lima (UTC-5, sin horario de verano), como lo calcula el servidor
+const hoyLima = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
+
+const NS_SVG = 'http://www.w3.org/2000/svg';
+function check() {
+  const s = document.createElementNS(NS_SVG, 'svg');
+  s.setAttribute('viewBox', '0 0 16 16');
+  s.setAttribute('width', '14');
+  s.setAttribute('height', '14');
+  s.setAttribute('aria-hidden', 'true');
+  s.classList.add('check');
+  const p = document.createElementNS(NS_SVG, 'polyline');
+  p.setAttribute('points', '3.5,8.5 6.5,11.5 12.5,4.5');
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', 'currentColor');
+  p.setAttribute('stroke-width', '2.2');
+  p.setAttribute('stroke-linecap', 'round');
+  p.setAttribute('stroke-linejoin', 'round');
+  s.append(p);
+  return s;
+}
 
 /* ---------- navegación ---------- */
 const cargadores = {};
@@ -314,51 +336,193 @@ function bajar(nombre, texto) {
 
 /* ============================================================
    NUEVA MEDICIÓN
+   Un solo campo, "Periodo": el nombre se arma solo. El botón se enciende
+   cuando hay fecha de cierre y al menos una pregunta. Al crear, el mismo
+   botón pasa a check y se transforma en el paso siguiente.
    ============================================================ */
 let preguntasCache = [];
+let equipo = 0;        // colaboradores activos, para el resumen
+let anterior = null;   // la última medición enviada: { periodo, ids }
+let creada = null;     // el borrador recién creado y cómo estaba el formulario
+
+const nombreMedicion = () => {
+  const p = document.getElementById('mPer').value.trim();
+  return p ? `Clima · ${p}` : 'Clima';
+};
+const elegidas = () => [...document.querySelectorAll('#qlist input:checked')].map((i) => Number(i.value));
+const firmaFormulario = () =>
+  [document.getElementById('mPer').value.trim(), document.getElementById('mCierra').value, elegidas().join(',')].join('|');
+
+// el trimestre en curso, o el siguiente si ese periodo ya tiene medición
+function periodoSugerido(camps) {
+  const [anio, mes] = hoyLima().split('-').map(Number);
+  let t = Math.ceil(mes / 3);
+  let a = anio;
+  const usados = new Set(camps.map((c) => c.periodo));
+  for (let i = 0; i < 4 && usados.has(`T${t} ${a}`); i++) {
+    t = t === 4 ? 1 : t + 1;
+    if (t === 1) a++;
+  }
+  return `T${t} ${a}`;
+}
+
+// una pregunta escrita toma bastante más que tocar una opción
+function minutosPorPersona(ids) {
+  const segundos = preguntasCache
+    .filter((p) => ids.includes(p.id))
+    .reduce((s, p) => s + (p.tipo === 'texto' ? 35 : 12), 0);
+  return Math.max(1, Math.round(segundos / 60));
+}
 
 cargadores.medicion = async () => {
-  preguntasCache = await api('/preguntas');
-  const lista = document.getElementById('qlist');
-  lista.innerHTML = '';
+  const [preguntas, camps, areas] = await Promise.all([api('/preguntas'), api('/campanas'), api('/areas')]);
+  preguntasCache = preguntas;
+  equipo = areas.reduce((s, a) => s + a.gente, 0);
 
-  for (const p of preguntasCache) {
-    const chk = el('input', { type: 'checkbox', value: p.id, checked: p.orden <= 7 });
-    const fila = el('label', { class: 'q' + (p.orden <= 7 ? ' sel' : '') }, [
-      chk,
-      el('div', {}, [
-        el('div', { class: 'qt', text: p.texto }),
-        el('div', { class: 'qd', text: p.tipo === 'texto' ? 'Respuesta escrita' : p.opciones.join(' · ') }),
-      ]),
-    ]);
-    chk.addEventListener('change', () => { fila.classList.toggle('sel', chk.checked); contarQ(); });
-    lista.append(fila);
+  const disponibles = new Set(preguntas.map((p) => p.id));
+  const usada = camps.find((c) => c.estado !== 'borrador');
+  anterior = usada ? {
+    periodo: usada.periodo || usada.nombre,
+    // solo las que siguen en el banco: una pregunta retirada no se puede repetir
+    ids: new Set(String(usada.preguntas || '').split(',').map(Number).filter((id) => disponibles.has(id))),
+  } : null;
+
+  const per = document.getElementById('mPer');
+  if (!per.value) per.value = periodoSugerido(camps);
+  // con una fecha ya pasada, la medición se cerraría sola apenas abrirla
+  document.getElementById('mCierra').min = hoyLima();
+
+  const lista = document.getElementById('qlist');
+  if (!lista.children.length) {
+    for (const p of preguntasCache) {
+      const marcada = p.orden <= 7;
+      const chk = el('input', { type: 'checkbox', value: p.id, checked: marcada });
+      const fila = el('label', { class: 'q' + (marcada ? ' sel' : '') }, [
+        chk,
+        el('div', {}, [
+          el('div', { class: 'qt', text: p.texto }),
+          el('div', { class: 'qd', text: p.tipo === 'texto' ? 'Respuesta escrita' : p.opciones.join(' · ') }),
+        ]),
+      ]);
+      chk.addEventListener('change', () => { fila.classList.toggle('sel', chk.checked); actualizarMedicion(true); });
+      lista.append(fila);
+    }
   }
-  contarQ();
-  await pintarCampanas();
+  actualizarMedicion(false);
+  pintarCampanas(camps);
 };
 
-const elegidas = () => [...document.querySelectorAll('#qlist input:checked')].map((i) => Number(i.value));
-const contarQ = () => { document.getElementById('qCount').textContent = `${elegidas().length} elegidas`; };
+function avisoSinEquipo() {
+  return el('div', { class: 'flag', style: 'margin-bottom:14px' }, [
+    el('span', { class: 'dot' }),
+    el('p', {}, [
+      el('b', { text: 'Todavía no cargaste colaboradores. ' }),
+      el('button', { type: 'button', class: 'enlace', text: 'Cargar colaboradores', onclick: () => ir('inicio') }),
+      document.createTextNode(' Puedes crear el borrador igual.'),
+    ]),
+  ]);
+}
+
+function repetirAnterior() {
+  if (!anterior || !anterior.ids.size) return null;
+  const ids = elegidas();
+  const iguales = ids.length === anterior.ids.size && ids.every((id) => anterior.ids.has(id));
+  if (iguales) {
+    return el('p', { class: 'repetir listo', 'data-iguales': '1' },
+      [check(), document.createTextNode(` Son las mismas preguntas de ${anterior.periodo}`)]);
+  }
+  return el('p', { class: 'repetir', 'data-iguales': '0' }, el('button', {
+    type: 'button', class: 'enlace', text: `Repetir las preguntas de ${anterior.periodo}`,
+    onclick: () => {
+      for (const chk of document.querySelectorAll('#qlist input')) {
+        chk.checked = anterior.ids.has(Number(chk.value));
+        chk.closest('.q').classList.toggle('sel', chk.checked);
+      }
+      actualizarMedicion(true);
+    },
+  }));
+}
+
+function actualizarMedicion(animar) {
+  const ids = elegidas();
+  const n = ids.length;
+
+  const qNum = document.getElementById('qNum');
+  const antes = Number(qNum.textContent);
+  if (animar) Movimiento.contar(qNum, antes, n);
+  else qNum.textContent = String(n);
+
+  document.getElementById('mNombre').textContent = `Se va a llamar «${nombreMedicion()}».`;
+
+  const aviso = document.getElementById('mAviso');
+  if (!equipo && !aviso.firstChild) aviso.append(avisoSinEquipo());
+  if (equipo && aviso.firstChild) aviso.replaceChildren();
+
+  document.getElementById('mResumen').textContent = n
+    ? [plural(n, 'pregunta', 'preguntas'),
+       equipo ? plural(equipo, 'colaborador', 'colaboradores') : null,
+       `unos ${plural(minutosPorPersona(ids), 'minuto', 'minutos')} por persona`].filter(Boolean).join(' · ')
+    : 'Elige al menos una pregunta.';
+
+  // "repetir" pasa a "son las mismas" (y vuelve) transformándose en su lugar
+  const slot = document.getElementById('qRepetir');
+  const nuevo = repetirAnterior();
+  const actual = slot.firstChild?.dataset.iguales;
+  if (!nuevo) slot.replaceChildren();
+  else if (actual !== nuevo.dataset.iguales) {
+    if (animar && slot.firstChild) Movimiento.reemplazar(slot, nuevo);
+    else slot.replaceChildren(nuevo);
+  }
+
+  // si cambió algo después de crear, lo que corresponde es crear otra vez
+  const boton = document.getElementById('btnCrear');
+  if (creada && creada.firma !== firmaFormulario()) {
+    creada = null;
+    Movimiento.ancho(boton, () => { boton.classList.remove('hecho'); boton.replaceChildren('Crear la medición'); });
+  }
+  if (!creada) boton.disabled = !(document.getElementById('mCierra').value && n > 0);
+}
+
+for (const id of ['mPer', 'mCierra']) {
+  document.getElementById(id).addEventListener('input', () => actualizarMedicion(true));
+}
 
 document.getElementById('btnCrear').addEventListener('click', async () => {
+  const boton = document.getElementById('btnCrear');
+  if (creada) { ir('envio'); return; } // ya es "Enviar la encuesta"
+
+  boton.disabled = true;
   try {
     const r = await api('/campanas', { method: 'POST', body: {
-      nombre: document.getElementById('mName').value,
-      periodo: document.getElementById('mPer').value,
+      nombre: nombreMedicion(),
+      periodo: document.getElementById('mPer').value.trim(),
       cierra_en: document.getElementById('mCierra').value,
       preguntas: elegidas(),
     } });
-    toast('Medición creada en borrador');
-    document.getElementById('mName').value = '';
-    document.getElementById('mPer').value = '';
-    await pintarCampanas();
-    ir('envio');
-  } catch (e) { toast(e.message, true); }
+    creada = { id: r.id, firma: firmaFormulario() };
+    Movimiento.ancho(boton, () => {
+      boton.classList.add('hecho');
+      boton.replaceChildren(check(), el('span', { text: 'Borrador creado' }));
+    });
+    Movimiento.animar(boton.firstChild, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], 'firme');
+    pintarCampanas();
+    // un momento para leer el check, y el mismo botón pasa al paso siguiente
+    setTimeout(() => {
+      if (!creada) return;
+      Movimiento.ancho(boton, () => {
+        boton.classList.remove('hecho');
+        boton.replaceChildren('Enviar la encuesta');
+        boton.disabled = false;
+      });
+    }, 1100);
+  } catch (e) {
+    toast(e.message, true);
+    boton.disabled = false;
+  }
 });
 
-async function pintarCampanas() {
-  const camps = await api('/campanas');
+async function pintarCampanas(lista) {
+  const camps = lista || await api('/campanas');
   const tb = document.getElementById('campTbody');
   tb.innerHTML = '';
   if (!camps.length) {
