@@ -322,7 +322,20 @@ export async function api(req, env, url, ctx) {
 
   if (ruta === '/colaboradores/importar' && metodo === 'POST') {
     if (await enModoEjemplo(db)) return error(NO_MEZCLAR_CON_EJEMPLO, 409);
-    return importar(db, cuerpo.texto || '');
+    if (Array.isArray(cuerpo.filas)) {
+      if (cuerpo.filas.length > 500) return error('Son demasiadas filas para una sola carga. Divide el archivo.');
+      return importar(db, cuerpo.filas.map((f) => ({ ...f, etiqueta: `Fila ${f.fila}` })));
+    }
+    // texto pegado: una línea por persona, en el orden de siempre
+    const filas = String(cuerpo.texto || '').split(/\r?\n/)
+      .map((linea, i) => ({ linea: linea.trim(), i }))
+      .filter(({ linea }) => linea)
+      .filter(({ linea }, k) => !(k === 0 && /nombre/i.test(linea.split(/[\t,;]/)[0])))
+      .map(({ linea, i }) => {
+        const [nombre, area, telefono, ingreso] = linea.split(/[\t,;]/).map((p) => p.trim());
+        return { nombre, area, telefono, ingreso, etiqueta: `Línea ${i + 1}` };
+      });
+    return importar(db, filas);
   }
 
   /* ---------- campañas ---------- */
@@ -700,10 +713,24 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
   });
 }
 
+/* Fecha de ingreso a ISO. Acepta 2023-03-15 y 15/03/2023 (día primero, como
+   se escribe en Perú). Lo demás no se adivina: queda sin fecha. */
+function fechaISO(v) {
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
+  if (m && Number(m[2]) <= 12 && Number(m[1]) <= 31) {
+    const anio = m[3].length === 2 ? `20${m[3]}` : m[3];
+    return `${anio}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  return null;
+}
+
 /* ============================================================
-   Importar colaboradores pegando texto
+   Importar colaboradores: desde un archivo o pegando texto
    ============================================================ */
-async function importar(db, texto) {
+async function importar(db, filas) {
   const { results: areas } = await db.prepare('SELECT id, nombre FROM areas').all();
   const porNombre = new Map(areas.map((a) => [a.nombre.toLowerCase(), a.id]));
 
@@ -717,18 +744,16 @@ async function importar(db, texto) {
   const telefonos = new Set(existentes.map((c) => c.telefono).filter(Boolean));
   const nombres = new Set(existentes.map((c) => `${c.nombre.toLowerCase()}|${c.area_id}`));
 
-  const lineas = String(texto).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const nuevas = [];
   const problemas = [];
   let n = 0;
   let yaEstaban = 0;
 
-  for (const [i, linea] of lineas.entries()) {
-    const partes = linea.split(/[\t,;]/).map((p) => p.trim());
-    const [nombre, area, telefono, ingreso] = partes;
-
-    if (i === 0 && /nombre/i.test(nombre || '')) continue; // encabezado
-    if (!nombre || !area) { problemas.push(`Línea ${i + 1}: falta el nombre o el área.`); continue; }
+  for (const f of filas) {
+    const nombre = String(f.nombre ?? '').trim();
+    const area = String(f.area ?? '').trim();
+    const telefono = String(f.telefono ?? '').trim();
+    if (!nombre || !area) { problemas.push(`${f.etiqueta}: falta el nombre o el área.`); continue; }
 
     let areaId = porNombre.get(area.toLowerCase());
     if (!areaId) {
@@ -739,7 +764,9 @@ async function importar(db, texto) {
     }
 
     const tel = telefono ? normalizarTelefono(telefono) : null;
-    if (telefono && !tel) problemas.push(`Línea ${i + 1}: el teléfono de ${nombre} no se entiende.`);
+    if (telefono && !tel) problemas.push(`${f.etiqueta}: el teléfono de ${nombre} no se entiende.`);
+    const ingreso = f.ingreso ? fechaISO(f.ingreso) : null;
+    if (f.ingreso && !ingreso) problemas.push(`${f.etiqueta}: la fecha de ingreso de ${nombre} no se entiende; quedó sin fecha.`);
 
     const llaveNombre = `${nombre.toLowerCase()}|${areaId}`;
     if ((tel && telefonos.has(tel)) || nombres.has(llaveNombre)) { yaEstaban++; continue; }
@@ -748,7 +775,7 @@ async function importar(db, texto) {
 
     nuevas.push(db.prepare(
       'INSERT INTO colaboradores (nombre, area_id, telefono, ingreso) VALUES (?, ?, ?, ?)'
-    ).bind(nombre, areaId, tel, ingreso || null));
+    ).bind(nombre, areaId, tel, ingreso));
     n++;
   }
 
