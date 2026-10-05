@@ -43,9 +43,11 @@ const VERSION_META = 'v25.0';
 /* ---------- Meta Cloud API ----------
    El mensaje tiene que ser una plantilla aprobada. Los {{1}}, {{2}}... se llenan
    con 'parameters' en el mismo orden en que aparecen en la plantilla. */
-async function meta({ persona, enlace, env }) {
+async function meta({ persona, enlace, remitente, env }) {
   const numero = normalizarTelefono(persona.telefono);
   if (!numero) return { ok: false, error: 'La persona no tiene teléfono cargado.' };
+  // sin quien firma, Meta rechaza el envío con un error poco claro
+  if (!remitente) return { ok: false, canal: 'meta', error: 'Falta quién firma los mensajes (Ajustes → Quién firma los mensajes).' };
 
   const r = await fetch(
     `https://graph.facebook.com/${VERSION_META}/${env.WA_PHONE_ID}/messages`,
@@ -68,7 +70,7 @@ async function meta({ persona, enlace, env }) {
             { type: 'body',
               parameters: [
                 { type: 'text', text: persona.nombre.split(' ')[0] },
-                { type: 'text', text: persona.remitente },
+                { type: 'text', text: remitente },
               ] },
             // el boton de URL dinamica recibe solo la parte variable del link
             { type: 'button', sub_type: 'url', index: '0',
