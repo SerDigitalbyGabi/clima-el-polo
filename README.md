@@ -129,8 +129,11 @@ Lo que hace falta:
 
 5. **Una plantilla aprobada.** Todo mensaje que inicia el negocio tiene que ser
    una plantilla revisada por Meta. Así la espera el código:
-   - Nombre `invitacion_encuesta_clima`, categoría **Utility**, idioma anotado
-     (`es`, `es_MX`… no son intercambiables).
+   - Nombre `invitacion_encuesta_clima`, categoría **Marketing**, idioma anotado
+     (`es`, `es_MX`… no son intercambiables). No es Utility: Meta solo acepta
+     como Utility una encuesta atada a una compra o trámite concreto, y una
+     encuesta de clima a empleados no lo es. Pedirla como Utility termina en
+     rechazo o en que Meta la reclasifique sola a Marketing.
    - Cuerpo con `{{1}}` = primer nombre y `{{2}}` = quién firma.
    - Botón de **URL dinámica**: `https://clima.ccelpolo.com/e/{{1}}`. El código
      manda solo el token.
@@ -194,10 +197,26 @@ npx wrangler pages secret put TWILIO_TOKEN --project-name clima-el-polo
 
 ### Costo
 
-A este volumen (48 personas × 4 mediciones + recordatorios ≈ 300 mensajes al año)
-el costo es de unos pocos dólares anuales en cualquiera de los dos. Meta actualiza
-tarifas por trimestre y varían por país: el precio vigente está en la
-documentación de precios de la plataforma de WhatsApp Business.
+Como el colaborador nunca escribe primero, la ventana gratuita de 24 horas no se
+abre jamás: **cada mensaje es una plantilla y se cobra**, los recordatorios
+incluidos. Una plantilla de Marketing a Perú cuesta unos 0,07 dólares (tarifa del
+1 de julio de 2026, según guías de terceros; la oficial está en la tabla de tarifas
+de Meta, que cambia por trimestre).
+
+48 personas más recordatorios a la mitad son unos 72 mensajes por medición: unos
+**5 dólares por medición, unos 20 al año** con una por trimestre.
+
+### Permiso de los colaboradores (opt-in)
+
+Meta exige que la persona haya aceptado recibir mensajes de la empresa que los
+manda, con el nombre de la empresa y el tipo de mensaje a la vista. Tener el número
+del colaborador en una planilla de la empresa **no cuenta**. Si varios reportan o
+bloquean el número, baja su calidad y Meta puede limitarlo.
+
+Antes del primer envío, quien administra a los colaboradores les avisa (grupo,
+correo o cartel) que van a recibir una encuesta de clima por WhatsApp desde
+«MAG Consulting», que es anónima y que pueden pedir no recibirla. Conviene guardar
+ese aviso. Quien pide no recibirla se da de baja en Colaboradores.
 
 ---
 
