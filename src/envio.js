@@ -46,8 +46,23 @@ const VERSION_META = 'v25.0';
 async function meta({ persona, enlace, remitente, env }) {
   const numero = normalizarTelefono(persona.telefono);
   if (!numero) return { ok: false, error: 'La persona no tiene teléfono cargado.' };
+
+  /* Las variables del cuerpo, en el orden en que aparecen en la plantilla
+     ({{1}}, {{2}}...). Meta rechaza el envío si la cantidad no coincide con la
+     de la plantilla aprobada, así que el orden se configura con WA_VARIABLES
+     (por defecto "nombre,remitente"; vacío si el cuerpo no lleva variables). */
+  const valores = { nombre: persona.nombre.split(' ')[0], remitente };
+  const orden = String(env.WA_VARIABLES ?? 'nombre,remitente')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  const desconocida = orden.find((k) => !(k in valores));
+  if (desconocida) {
+    return { ok: false, canal: 'meta', error: `WA_VARIABLES no reconoce "${desconocida}". Valores posibles: nombre, remitente.` };
+  }
   // sin quien firma, Meta rechaza el envío con un error poco claro
-  if (!remitente) return { ok: false, canal: 'meta', error: 'Falta quién firma los mensajes (Ajustes → Quién firma los mensajes).' };
+  if (orden.includes('remitente') && !remitente) {
+    return { ok: false, canal: 'meta', error: 'Falta quién firma los mensajes (Ajustes → Quién firma los mensajes).' };
+  }
+  const parametrosCuerpo = orden.map((k) => ({ type: 'text', text: valores[k] }));
 
   const r = await fetch(
     `https://graph.facebook.com/${VERSION_META}/${env.WA_PHONE_ID}/messages`,
@@ -67,11 +82,8 @@ async function meta({ persona, enlace, remitente, env }) {
           // plantilla: 'es' y 'es_MX' no son intercambiables para Meta
           language: { code: env.WA_IDIOMA || 'es' },
           components: [
-            { type: 'body',
-              parameters: [
-                { type: 'text', text: persona.nombre.split(' ')[0] },
-                { type: 'text', text: remitente },
-              ] },
+            // un cuerpo sin variables no lleva este componente
+            ...(parametrosCuerpo.length ? [{ type: 'body', parameters: parametrosCuerpo }] : []),
             // el boton de URL dinamica recibe solo la parte variable del link
             { type: 'button', sub_type: 'url', index: '0',
               parameters: [{ type: 'text', text: enlace.split('/e/')[1] }] },
