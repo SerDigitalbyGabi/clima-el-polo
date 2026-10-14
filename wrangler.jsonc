@@ -22,7 +22,7 @@
     "WA_PHONE_ID": "1450004458186324",        // número +51 913 090 381 (confirmar con la API al tener el token)
     "WA_PLANTILLA": "invitacion_encuesta_clima",
     "WA_IDIOMA": "es",                         // tiene que ser el código exacto con que se creó la plantilla
-    "WA_VARIABLES": "nombre,remitente"         // variables del cuerpo, en orden: {{1}}, {{2}}
+    "WA_VARIABLES": "nombre"                   // variables del cuerpo, en orden: {{1}} = primer nombre
   },
 
   "d1_databases": [
