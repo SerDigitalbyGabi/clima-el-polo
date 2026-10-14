@@ -3,7 +3,7 @@ import {
   abrirSesion, leerSesion, cerrarSesion, cookieSesion, cookieVacia,
 } from './auth.js';
 import { valorDeOpcion, promedio, rangoAntiguedad, ocultarSiEsChico, temasRepetidos } from './puntajes.js';
-import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion } from './envio.js';
+import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion, estadoMeta } from './envio.js';
 import { enviarCorreo, cuerpoAccion, correoDisponible } from './correo.js';
 import { sugerir } from './sugerencias.js';
 import { MARCA, enModoEjemplo, cargarEjemplo, borrarEjemplo } from './ejemplo.js';
@@ -247,6 +247,11 @@ export async function api(req, env, url, ctx) {
       correoListo: correoDisponible(env),
       datosEjemplo: a[MARCA] === '1',
     });
+  }
+
+  /* ---------- estado del canal de WhatsApp: solo lectura ---------- */
+  if (ruta === '/meta/estado' && metodo === 'GET') {
+    return json(await estadoMeta(env));
   }
 
   /* ---------- datos de ejemplo ---------- */

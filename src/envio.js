@@ -140,6 +140,48 @@ async function twilio({ persona, enlace, remitente, env }) {
 
 const drivers = { manual, meta, twilio };
 
+/* Estado del canal de Meta, solo lectura: no manda ningún mensaje ni cuesta.
+   Contesta tres cosas: si el token y el número se entienden entre sí, en qué
+   estado está el número, y cómo quedó la plantilla (idioma, categoría, estado).
+   Nunca devuelve el token. */
+export async function estadoMeta(env) {
+  const faltan = [];
+  if (!env.WA_TOKEN) faltan.push('WA_TOKEN');
+  if (!env.WA_PHONE_ID) faltan.push('WA_PHONE_ID');
+  if (faltan.length) return { ok: false, error: `Falta configurar: ${faltan.join(', ')}.` };
+
+  const leer = async (ruta) => {
+    const r = await fetch(`https://graph.facebook.com/${VERSION_META}/${ruta}`, {
+      headers: { Authorization: `Bearer ${env.WA_TOKEN}` },
+    });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, datos: j }
+      : { ok: false, codigo: j?.error?.code, error: j?.error?.message || `Meta respondió ${r.status}.` };
+  };
+
+  const campos = 'display_phone_number,verified_name,name_status,code_verification_status,quality_rating,status,platform_type';
+  let numero = await leer(`${env.WA_PHONE_ID}?fields=${campos}`);
+  // si algún campo no existe en esta versión, se repite con los básicos
+  if (!numero.ok && numero.codigo === 100) {
+    numero = await leer(`${env.WA_PHONE_ID}?fields=display_phone_number,verified_name,quality_rating`);
+  }
+
+  const nombre = env.WA_PLANTILLA || 'invitacion_encuesta_clima';
+  let plantilla = { ok: null, error: 'Sin WA_WABA_ID no se puede consultar la plantilla.' };
+  if (env.WA_WABA_ID) {
+    plantilla = await leer(
+      `${env.WA_WABA_ID}/message_templates?name=${encodeURIComponent(nombre)}&fields=name,status,category,language,rejected_reason`
+    );
+  }
+
+  return {
+    ok: numero.ok && plantilla.ok !== false,
+    esperado: { plantilla: nombre, idioma: env.WA_IDIOMA || 'es', variables: env.WA_VARIABLES ?? 'nombre,remitente' },
+    numero,
+    plantilla,
+  };
+}
+
 export function canalDisponible(canal, env) {
   if (canal === 'meta')   return Boolean(env.WA_TOKEN && env.WA_PHONE_ID);
   if (canal === 'twilio') return Boolean(env.TWILIO_SID && env.TWILIO_TOKEN && env.TWILIO_FROM);

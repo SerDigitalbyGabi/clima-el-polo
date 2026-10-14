@@ -20,6 +20,7 @@
     //   npx wrangler pages secret put WA_TOKEN --project-name clima-el-polo
     // Sin token el canal queda apagado aunque estos valores estén puestos.
     "WA_PHONE_ID": "1450004458186324",        // número +51 913 090 381 (confirmar con la API al tener el token)
+    "WA_WABA_ID": "2194190601159590",          // cuenta de WhatsApp Business (solo para consultar el estado de la plantilla)
     "WA_PLANTILLA": "invitacion_encuesta_clima",
     "WA_IDIOMA": "es",                         // tiene que ser el código exacto con que se creó la plantilla
     "WA_VARIABLES": "nombre"                   // variables del cuerpo, en orden: {{1}} = primer nombre
