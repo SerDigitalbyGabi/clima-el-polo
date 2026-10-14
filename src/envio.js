@@ -182,6 +182,25 @@ export async function estadoMeta(env) {
   };
 }
 
+/* Registra el número en la Cloud API. Meta lo pide una vez, después de verificar
+   el código del chip: hasta entonces el número figura PENDING y no puede enviar.
+   Escribe en Meta, así que solo se llama a pedido y con un PIN de 6 dígitos que
+   elige la persona: es el PIN de la verificación en dos pasos del número. Meta
+   lo bloquea si se reintenta seguido (error 133016), por eso es un solo intento. */
+export async function registrarNumeroMeta(env, pin) {
+  if (!canalDisponible('meta', env)) return { ok: false, error: 'Falta WA_TOKEN o WA_PHONE_ID.' };
+  if (!/^\d{6}$/.test(String(pin || ''))) return { ok: false, error: 'El PIN tiene que ser de 6 dígitos.' };
+
+  const r = await fetch(`https://graph.facebook.com/${VERSION_META}/${env.WA_PHONE_ID}/register`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.WA_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', pin: String(pin) }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, codigo: j?.error?.code, error: j?.error?.message || `Meta respondió ${r.status}.` };
+  return { ok: Boolean(j.success), respuesta: j };
+}
+
 export function canalDisponible(canal, env) {
   if (canal === 'meta')   return Boolean(env.WA_TOKEN && env.WA_PHONE_ID);
   if (canal === 'twilio') return Boolean(env.TWILIO_SID && env.TWILIO_TOKEN && env.TWILIO_FROM);

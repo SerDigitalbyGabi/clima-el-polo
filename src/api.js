@@ -3,7 +3,7 @@ import {
   abrirSesion, leerSesion, cerrarSesion, cookieSesion, cookieVacia,
 } from './auth.js';
 import { valorDeOpcion, promedio, rangoAntiguedad, ocultarSiEsChico, temasRepetidos } from './puntajes.js';
-import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion, estadoMeta } from './envio.js';
+import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion, estadoMeta, registrarNumeroMeta } from './envio.js';
 import { enviarCorreo, cuerpoAccion, correoDisponible } from './correo.js';
 import { sugerir } from './sugerencias.js';
 import { MARCA, enModoEjemplo, cargarEjemplo, borrarEjemplo } from './ejemplo.js';
@@ -252,6 +252,19 @@ export async function api(req, env, url, ctx) {
   /* ---------- estado del canal de WhatsApp: solo lectura ---------- */
   if (ruta === '/meta/estado' && metodo === 'GET') {
     return json(await estadoMeta(env));
+  }
+
+  /* Registrar el número en la Cloud API: escribe en Meta, una sola vez. Se
+     niega si el número ya está conectado, para no tocar un número que anda. */
+  if (ruta === '/meta/registrar' && metodo === 'POST') {
+    const antes = await estadoMeta(env);
+    const n = antes.numero?.datos;
+    if (!antes.numero?.ok) return error(antes.numero?.error || antes.error || 'No se pudo leer el estado del número.', 502);
+    if (n?.platform_type === 'CLOUD_API' || n?.status === 'CONNECTED') {
+      return error('El número ya está registrado y conectado. No hace falta registrarlo de nuevo.', 409);
+    }
+    const r = await registrarNumeroMeta(env, cuerpo.pin);
+    return r.ok ? json({ ok: true }) : error(r.error, 502);
   }
 
   /* ---------- datos de ejemplo ---------- */
