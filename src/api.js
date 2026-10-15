@@ -3,7 +3,7 @@ import {
   abrirSesion, leerSesion, cerrarSesion, cookieSesion, cookieVacia,
 } from './auth.js';
 import { valorDeOpcion, promedio, rangoAntiguedad, ocultarSiEsChico, temasRepetidos } from './puntajes.js';
-import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion, estadoMeta, registrarNumeroMeta } from './envio.js';
+import { enviarInvitacion, enlaceEncuesta, canalDisponible, normalizarTelefono, textoInvitacion, estadoMeta, registrarNumeroMeta, bloqueoMeta } from './envio.js';
 import { enviarCorreo, cuerpoAccion, correoDisponible } from './correo.js';
 import { sugerir } from './sugerencias.js';
 import { MARCA, enModoEjemplo, cargarEjemplo, borrarEjemplo } from './ejemplo.js';
@@ -793,6 +793,13 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
   const a = await ajustes(db);
   const canal = cuerpo.canal || a.canal_envio || 'manual';
   const soloPendientes = cuerpo.recordatorio === true;
+
+  // si Meta tiene bloqueado el envío (pago, restricciones), no se marca a nadie
+  // como enviado: se corta antes y se dice por qué
+  if (canal === 'meta') {
+    const motivo = await bloqueoMeta(env);
+    if (motivo) return error(`WhatsApp no puede enviar ahora. ${motivo}`, 409);
+  }
 
   const { results } = await db.prepare(
     `SELECT i.token, c.nombre, c.telefono

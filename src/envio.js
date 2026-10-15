@@ -196,6 +196,29 @@ export async function estadoMeta(env) {
   };
 }
 
+/* ¿Meta tiene bloqueado el envío? Una sola consulta, antes de mandar una tanda.
+   Meta acepta el envío igual y falla después, así que sin esto la plataforma
+   marcaría "enviada" a gente que nunca va a recibir nada. Devuelve el motivo en
+   palabras de Meta, o null si no hay bloqueo (o si no se pudo consultar: un
+   fallo de diagnóstico no tiene que impedir el envío). */
+export async function bloqueoMeta(env) {
+  if (!canalDisponible('meta', env)) return null;
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/${VERSION_META}/${env.WA_PHONE_ID}?fields=health_status`,
+      { headers: { Authorization: `Bearer ${env.WA_TOKEN}` } }
+    );
+    const j = await r.json().catch(() => ({}));
+    const bloqueadas = (j?.health_status?.entities || []).filter((e) => e.can_send_message === 'BLOCKED');
+    if (!bloqueadas.length) return null;
+    return bloqueadas
+      .flatMap((e) => (e.errors || []).map((x) => x.error_description))
+      .filter(Boolean).join(' ') || 'Meta tiene bloqueado el envío de este número.';
+  } catch {
+    return null;
+  }
+}
+
 /* Registra el número en la Cloud API. Meta lo pide una vez, después de verificar
    el código del chip: hasta entonces el número figura PENDING y no puede enviar.
    Escribe en Meta, así que solo se llama a pedido y con un PIN de 6 dígitos que
