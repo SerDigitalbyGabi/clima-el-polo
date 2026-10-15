@@ -174,11 +174,25 @@ export async function estadoMeta(env) {
     );
   }
 
+  // Por qué un número no puede enviar (pago, límites, restricciones) y cuántos
+  // mensajes Meta contó como enviados y entregados en los últimos tres días.
+  // Meta no deja consultar un mensaje suelto: estos conteos son lo más cercano.
+  const salud = await leer(`${env.WA_PHONE_ID}?fields=health_status`);
+  let analitica = null;
+  if (env.WA_WABA_ID) {
+    const fin = Math.floor(Date.now() / 1000);
+    analitica = await leer(
+      `${env.WA_WABA_ID}?fields=analytics.start(${fin - 3 * 86400}).end(${fin}).granularity(DAY)`
+    );
+  }
+
   return {
     ok: numero.ok && plantilla.ok !== false,
     esperado: { plantilla: nombre, idioma: env.WA_IDIOMA || 'es', variables: env.WA_VARIABLES ?? 'nombre,remitente' },
     numero,
     plantilla,
+    salud,
+    analitica,
   };
 }
 
