@@ -186,6 +186,22 @@ export async function estadoMeta(env) {
     );
   }
 
+  // A quién pertenece la cuenta de WhatsApp y qué cuentas tiene ese negocio.
+  // Sirve para saber en qué portfolio hay que cargar la tarjeta.
+  let cuenta = null;
+  let negocio = null;
+  if (env.WA_WABA_ID) {
+    cuenta = await leer(`${env.WA_WABA_ID}?fields=name,owner_business_info,account_review_status,business_verification_status,currency`);
+    const idNegocio = salud.datos?.health_status?.entities?.find((e) => e.entity_type === 'BUSINESS')?.id
+      || cuenta.datos?.owner_business_info?.id;
+    if (idNegocio) {
+      negocio = {
+        datos: await leer(`${idNegocio}?fields=name,verification_status`),
+        cuentas: await leer(`${idNegocio}/owned_whatsapp_business_accounts?fields=id,name&limit=25`),
+      };
+    }
+  }
+
   return {
     ok: numero.ok && plantilla.ok !== false,
     esperado: { plantilla: nombre, idioma: env.WA_IDIOMA || 'es', variables: env.WA_VARIABLES ?? 'nombre,remitente' },
@@ -193,6 +209,8 @@ export async function estadoMeta(env) {
     plantilla,
     salud,
     analitica,
+    cuenta,
+    negocio,
   };
 }
 
