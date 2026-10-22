@@ -821,10 +821,12 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
     .map(String).filter((t) => /^[A-Z0-9]+$/.test(t)).slice(0, 80);
   const sinFallidas = excluir.length ? `AND i.token NOT IN (${excluir.map(() => '?').join(',')})` : '';
 
-  // el envío inicial va a quien nunca recibió; el recordatorio, a quien recibió,
-  // no respondió y todavía no fue recordado (uno solo por persona)
+  // El envío inicial va a quien nunca recibió; el recordatorio, a quien recibió,
+  // no respondió y todavía no fue recordado (uno solo por persona).
+  // A mano, la plataforma no sabe qué mandó la persona (no marca a nadie como
+  // enviado), así que el recordatorio es la lista de quienes no han respondido.
   const pendientes = soloPendientes
-    ? 'AND i.enviada_en IS NOT NULL AND i.recordada_en IS NULL'
+    ? (canal === 'manual' ? '' : 'AND i.enviada_en IS NOT NULL AND i.recordada_en IS NULL')
     : 'AND i.enviada_en IS NULL';
 
   const { results } = await db.prepare(
@@ -849,6 +851,7 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
       enlace: enlaceEncuesta(url.origin, p.token),
       remitente: a.remitente || a.organizacion,
       env,
+      recordatorio: soloPendientes,
     });
     salida.push({ nombre: p.nombre, telefono: p.telefono, token: p.token, ...r });
     if (r.ok && r.enviado) {

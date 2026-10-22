@@ -26,11 +26,22 @@ export function textoInvitacion({ nombre, enlace, remitente }) {
     `Este link es solo tuyo: ${enlace}`;
 }
 
+/* El recordatorio a mano. Dice que es un segundo mensaje, para que no parezca
+   que la plataforma se equivocó y lo repitió. */
+export function textoRecordatorio({ nombre, enlace, remitente }) {
+  return `Hola ${String(nombre).split(' ')[0]} 👋 Te escribimos de nuevo desde ${remitente}.\n\n` +
+    `Todavía estás a tiempo de contarnos cómo te fue. Son preguntas cortas, toman menos de 2 minutos ` +
+    `y tus respuestas son anónimas.\n\n` +
+    `Tu link es solo tuyo: ${enlace}`;
+}
+
 /* ---------- manual: cero tramite, funciona hoy ----------
    No manda nada. Devuelve el link listo y un texto armado para que
    la persona a cargo lo pegue en su propio WhatsApp. */
-function manual({ persona, enlace, remitente }) {
-  const texto = textoInvitacion({ nombre: persona.nombre, enlace, remitente });
+function manual({ persona, enlace, remitente, recordatorio }) {
+  const texto = recordatorio
+    ? textoRecordatorio({ nombre: persona.nombre, enlace, remitente })
+    : textoInvitacion({ nombre: persona.nombre, enlace, remitente });
   return { ok: true, canal: 'manual', enviado: false, texto,
            wa: `https://wa.me/${normalizarTelefono(persona.telefono) || ''}?text=${encodeURIComponent(texto)}` };
 }
@@ -262,16 +273,16 @@ export function canalDisponible(canal, env) {
   return true;
 }
 
-export async function enviarInvitacion({ canal, persona, enlace, remitente, env }) {
+export async function enviarInvitacion({ canal, persona, enlace, remitente, env, recordatorio = false }) {
   const driver = drivers[canal] || manual;
   // si el canal esta elegido pero le faltan credenciales, no fallamos:
   // devolvemos el link para mandarlo a mano y lo decimos.
   if (!canalDisponible(canal, env)) {
-    return { ...manual({ persona, enlace, remitente }),
+    return { ...manual({ persona, enlace, remitente, recordatorio }),
              aviso: `Falta configurar ${canal}. Te dejo el link para enviarlo a mano.` };
   }
   try {
-    return await driver({ persona, enlace, remitente, env });
+    return await driver({ persona, enlace, remitente, env, recordatorio });
   } catch (e) {
     return { ok: false, canal, error: String(e.message || e) };
   }
