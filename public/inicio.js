@@ -241,7 +241,7 @@ function pieCurso(c) {
   const faltan = c.invitados - c.respondieron;
   return faltan > 0
     ? el('button', { type: 'button', class: 'btn', text: 'Enviar recordatorio a quienes faltan',
-        onclick: (e) => mandar(c.campana.id, false, e.currentTarget) })
+        onclick: (e) => mandar(c.campana.id, true, e.currentTarget) })
     : el('p', { class: 'muted', text: 'Respondieron todos. No falta nadie.' });
 }
 

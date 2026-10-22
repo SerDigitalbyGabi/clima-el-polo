@@ -576,21 +576,38 @@ async function mandar(campanaId, recordatorio, boton) {
   boton.disabled = true;
   boton.textContent = 'Procesando…';
   try {
-    let total = 0;
+    let enviados = 0;
     let manuales = [];
+    const fallos = []; // quienes no salieron: se muestran al final y no se reintentan
     for (;;) {
-      const r = await api(`/campanas/${campanaId}/enviar`, { method: 'POST', body: { recordatorio } });
-      total += r.procesados;
-      if (r.canal === 'manual') manuales = r.resultados;
-      if (r.canal === 'manual' || r.restantes === 0 || r.procesados === 0) break;
-      boton.textContent = `Enviando… ${total}`;
+      const r = await api(`/campanas/${campanaId}/enviar`, { method: 'POST',
+        body: { recordatorio, excluir: fallos.map((f) => f.token) } });
+      if (r.canal === 'manual') { manuales = r.resultados; break; }
+
+      for (const x of r.resultados) {
+        if (x.ok && x.enviado) enviados++;
+        else fallos.push({ token: x.token, nombre: x.nombre,
+          motivo: x.error || x.aviso || 'No se pudo enviar.' });
+      }
+      if (r.restantes === 0 || r.procesados === 0) break;
+      if (fallos.length >= 80) break; // el servidor no acepta más exclusiones
+      boton.textContent = `Enviando… ${enviados}`;
     }
 
     if (manuales.length) {
       mostrarManuales(manuales);
     } else {
-      toast(`${total} mensajes enviados`);
+      if (!enviados && !fallos.length) {
+        toast(recordatorio
+          ? 'Todavía no hay a quién recordarle: primero hay que enviar la encuesta, o ya se les recordó.'
+          : 'No había nadie pendiente de envío.');
+      } else {
+        toast(`${enviados} ${enviados === 1 ? 'mensaje enviado' : 'mensajes enviados'}`
+          + (fallos.length ? ` · ${fallos.length} no salieron` : ''), fallos.length > 0);
+      }
+      if (fallos.length) mostrarFallos(fallos);
       cargadores.envio();
+      cargadores.inicio();
     }
   } catch (e) {
     toast(e.message, true);
@@ -598,6 +615,20 @@ async function mandar(campanaId, recordatorio, boton) {
     boton.disabled = false;
     boton.textContent = original;
   }
+}
+
+function mostrarFallos(lista) {
+  const cont = el('div', {});
+  cont.append(el('p', { class: 'muted', style: 'font-size:13.5px;margin-bottom:14px',
+    text: 'A estas personas no les salió el mensaje; a las demás sí. Corrige el teléfono en Colaboradores, o mándales el link por correo desde "Enviar la encuesta".' }));
+  for (const f of lista) {
+    cont.append(el('div', { class: 'linkrow' }, [
+      el('div', {}, [el('div', { text: f.nombre }), el('code', { text: f.motivo })]),
+      el('span', {}),
+      el('span', {}),
+    ]));
+  }
+  abrirModal(`${lista.length} ${lista.length === 1 ? 'persona sin enviar' : 'personas sin enviar'}`, cont);
 }
 
 function mostrarManuales(lista) {

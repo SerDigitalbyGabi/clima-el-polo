@@ -351,8 +351,17 @@ export async function api(req, env, url, ctx) {
     }
     if (metodo === 'DELETE') {
       // baja logica: si se borrara la fila, las invitaciones de campanas
-      // pasadas se irian con ella y el historico quedaria mal contado
-      await db.prepare('UPDATE colaboradores SET activo = 0 WHERE id = ?').bind(id).run();
+      // pasadas se irian con ella y el historico quedaria mal contado.
+      // Las invitaciones sin responder de mediciones abiertas o en borrador si
+      // se retiran: no tiene que recibir recordatorios ni contar como "falta".
+      await db.batch([
+        db.prepare('UPDATE colaboradores SET activo = 0 WHERE id = ?').bind(id),
+        db.prepare(
+          `DELETE FROM invitaciones
+            WHERE colaborador_id = ? AND respondida_en IS NULL
+              AND campana_id IN (SELECT id FROM campanas WHERE estado IN ('abierta', 'borrador'))`
+        ).bind(id),
+      ]);
       return json({ ok: true });
     }
   }
@@ -794,6 +803,9 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
   const canal = cuerpo.canal || a.canal_envio || 'manual';
   const soloPendientes = cuerpo.recordatorio === true;
 
+  // una medición cerrada o en borrador no recibe envíos: el link no serviría
+  if (campana.estado !== 'abierta') return error('La medición no está abierta.', 409);
+
   // si Meta tiene bloqueado el envío (pago, restricciones), no se marca a nadie
   // como enviado: se corta antes y se dice por qué
   if (canal === 'meta') {
@@ -801,16 +813,32 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
     if (motivo) return error(`WhatsApp no puede enviar ahora. ${motivo}`, 409);
   }
 
+  // Quienes ya fallaron en esta ronda (sin teléfono, número inválido...). El
+  // panel los manda de vuelta para que no se reintenten en bucle: sin esto, una
+  // sola persona con el teléfono vacío dejaba el envío girando para siempre.
+  // Tope de 80: D1 admite 100 parámetros por consulta.
+  const excluir = (Array.isArray(cuerpo.excluir) ? cuerpo.excluir : [])
+    .map(String).filter((t) => /^[A-Z0-9]+$/.test(t)).slice(0, 80);
+  const sinFallidas = excluir.length ? `AND i.token NOT IN (${excluir.map(() => '?').join(',')})` : '';
+
+  // el envío inicial va a quien nunca recibió; el recordatorio, a quien recibió,
+  // no respondió y todavía no fue recordado (uno solo por persona)
+  const pendientes = soloPendientes
+    ? 'AND i.enviada_en IS NOT NULL AND i.recordada_en IS NULL'
+    : 'AND i.enviada_en IS NULL';
+
   const { results } = await db.prepare(
     `SELECT i.token, c.nombre, c.telefono
        FROM invitaciones i
        JOIN colaboradores c ON c.id = i.colaborador_id
       WHERE i.campana_id = ?
+        AND c.activo = 1
         AND i.respondida_en IS NULL
-        ${soloPendientes ? 'AND i.enviada_en IS NOT NULL' : 'AND i.enviada_en IS NULL'}
+        ${pendientes}
+        ${sinFallidas}
       ORDER BY c.nombre
       LIMIT ?`
-  ).bind(campanaId, canal === 'manual' ? TANDA_MANUAL : TANDA_API).all();
+  ).bind(campanaId, ...excluir, canal === 'manual' ? TANDA_MANUAL : TANDA_API).all();
 
   const salida = [];
   const marcas = [];
@@ -833,11 +861,18 @@ async function enviar(db, env, url, campanaId, cuerpo, campana) {
   }
   if (marcas.length) await db.batch(marcas);
 
+  // mismas condiciones que la selección: si cuenta a alguien que nunca va a
+  // seleccionar, el panel pensaría que falta gente y seguiría llamando
   const restan = await db.prepare(
-    `SELECT COUNT(*) AS n FROM invitaciones
-      WHERE campana_id = ? AND respondida_en IS NULL
-        ${soloPendientes ? 'AND enviada_en IS NOT NULL AND recordada_en IS NULL' : 'AND enviada_en IS NULL'}`
-  ).bind(campanaId).first();
+    `SELECT COUNT(*) AS n
+       FROM invitaciones i
+       JOIN colaboradores c ON c.id = i.colaborador_id
+      WHERE i.campana_id = ?
+        AND c.activo = 1
+        AND i.respondida_en IS NULL
+        ${pendientes}
+        ${sinFallidas}`
+  ).bind(campanaId, ...excluir).first();
 
   return json({
     canal,

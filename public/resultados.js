@@ -51,7 +51,7 @@ function vacioResultados(camps, minimo) {
       `Van ${abierta.respondieron} de ${abierta.invitados} respuestas, los resultados aparecen al llegar al mínimo`,
       null,
       el('button', { type: 'button', class: 'btn mt16', text: 'Enviar recordatorio a quienes faltan',
-        onclick: (e) => mandar(abierta.id, false, e.currentTarget) }));
+        onclick: (e) => mandar(abierta.id, true, e.currentTarget) }));
   }
   if (borrador) {
     return caja('Envía la encuesta',
